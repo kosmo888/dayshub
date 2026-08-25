@@ -1,0 +1,62 @@
+{
+  "events": [
+    {
+      "title": "母亲生日",
+      "event_type": "recurring",
+      "category": "family",
+      "date": "1965-10-15",
+      "lunar_month": 9,
+      "lunar_day": 10,
+      "is_recurring": 1,
+      "advance_days": 3,
+      "note": "记得提前订鲜花和蛋糕",
+      "is_pinned": 1
+    },
+    {
+      "title": "父亲生日",
+      "event_type": "recurring",
+      "category": "family",
+      "date": "1963-08-20",
+      "lunar_month": 7,
+      "lunar_day": 2,
+      "is_recurring": 1,
+      "advance_days": 3,
+      "note": ""
+    },
+    {
+      "title": "结婚纪念日",
+      "event_type": "recurring",
+      "category": "anniversary",
+      "date": "2020-05-20",
+      "is_recurring": 1,
+      "advance_days": 7,
+      "note": "每年5月20日",
+      "is_pinned": 1
+    },
+    {
+      "title": "宝宝出生日",
+      "event_type": "accumulate",
+      "category": "family",
+      "date": "2026-03-21",
+      "advance_days": 3,
+      "note": "宝宝出生",
+      "is_pinned": 1
+    },
+    {
+      "title": "新年",
+      "event_type": "recurring",
+      "category": "holiday",
+      "date": "2026-01-01",
+      "is_recurring": 1,
+      "advance_days": 1
+    },
+    {
+      "title": "春节",
+      "event_type": "recurring",
+      "category": "holiday",
+      "date": "2027-02-06",
+      "is_recurring": 1,
+      "advance_days": 7
+    }
+  ]
+}

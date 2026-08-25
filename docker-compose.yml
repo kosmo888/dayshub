@@ -1,0 +1,49 @@
+services:
+  dayshub:
+    build: .
+    container_name: dayshub
+    restart: unless-stopped
+    ports:
+      - "5217:5217"
+    volumes:
+      - ./data:/app/data
+    environment:
+      # ========== 基础 ==========
+      DAYSHUB_SECRET_KEY: "${DAYSHUB_SECRET_KEY:-change-me-to-random-string}"
+      DAYSHUB_API_TOKEN: "${DAYSHUB_API_TOKEN:-}"              # API 写操作认证 Token（为空则无认证，生产环境务必设置）
+      DAYSHUB_TZ: "Asia/Shanghai"
+      DAYSHUB_BASE_URL: "http://localhost:5217"
+      SEED_EXAMPLES: "true"
+
+      # ========== 邮件推送 (SMTP) ==========
+      # 填写后自动启用每日邮件晨报
+      SMTP_HOST: ""           # 如 smtp.exmail.qq.com
+      SMTP_PORT: "465"
+      SMTP_USER: ""           # 发件邮箱
+      SMTP_PASS: ""           # 邮箱密码/授权码
+      SMTP_FROM: ""           # 发件人地址（同 SMTP_USER 即可）
+      SMTP_TO: ""             # 收件人（逗号分隔多个）
+      SMTP_SSL: "true"
+
+      # ========== 企业微信 Webhook ==========
+      # 填写后自动启用企微推送
+      WECOM_WEBHOOK: ""
+
+      # ========== Telegram Bot ==========
+      TG_BOT_TOKEN: ""
+      TG_CHAT_ID: ""
+
+      # ========== 通用自定义 Webhook ==========
+      # 任意 URL，POST JSON 推送。多个用逗号分隔。
+      # 自动推送的事件: morning(晨报) / reminder(提醒) / event_created / event_updated / event_deleted
+      CUSTOM_WEBHOOK_URLS: ""
+      # 可选：自定义请求头 JSON（如 {"Authorization":"Bearer xxx"}）
+      CUSTOM_WEBHOOK_HEADERS: ""
+      # 推送事件筛选（逗号分隔，默认全部）
+      CUSTOM_WEBHOOK_EVENTS: "morning,reminder,event_created,event_updated,event_deleted"
+
+      # ========== 通知策略 ==========
+      ADVANCE_DAYS: "7,3,1,0"
+      MORNING_REPORT_TIME: "08:00"
+      PUSH_RETRY_COUNT: "3"
+      PUSH_RETRY_DELAY: "5"

@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DaysHub · 时光看板</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<!-- 登录页 -->
+<div id="loginPage" style="display:none">
+  <div class="login-card">
+    <h1>📅 DaysHub</h1>
+    <p class="login-sub">时光看板</p>
+    <form onsubmit="doLogin(event)">
+      <input type="password" id="loginPassword" placeholder="输入密码" autofocus class="login-input">
+      <button type="submit" class="btn btn-primary login-btn">进入</button>
+      <p id="loginError" class="login-error" style="display:none;">密码错误</p>
+    </form>
+  </div>
+</div>
+
+<!-- 主应用 -->
+<div id="app" style="display:none">
+  <!-- 顶部头部 -->
+  <header class="header" id="header">
+    <div class="header-bg"></div>
+    <div class="header-content">
+      <h1>📅 DaysHub <span class="subtitle">时光看板</span></h1>
+      <div class="date-info" id="dateInfo">加载中...</div>
+      <div class="progress-bars" id="progressBars"></div>
+    </div>
+  </header>
+
+  <!-- 今日纪念 -->
+  <section class="section today-section" id="todaySection" style="display:none">
+    <h2 class="section-title">🎯 今日纪念</h2>
+    <div id="todayEvents"></div>
+  </section>
+
+  <!-- 搜索栏 -->
+  <div class="search-bar" id="searchBar">
+    <input type="text" id="searchInput" placeholder="🔍 搜索事件..." oninput="doSearch()" class="search-input">
+    <select id="searchCategory" onchange="doSearch()" class="search-select">
+      <option value="">全部分类</option>
+      <option value="family">🏠 家庭</option>
+      <option value="anniversary">💝 纪念日</option>
+      <option value="work">💼 工作/考试</option>
+      <option value="habit">🎯 习惯打卡</option>
+      <option value="life">📋 生活/资产</option>
+      <option value="holiday">🎉 节假日</option>
+      <option value="other">📌 其他</option>
+    </select>
+  </div>
+
+  <!-- 标签切换 -->
+  <nav class="tabs" id="tabs">
+    <button class="tab active" data-tab="all">📋 全部</button>
+    <button class="tab" data-tab="countdown">⏳ 倒数日</button>
+    <button class="tab" data-tab="recurring">🔄 循环日</button>
+    <button class="tab" data-tab="accumulate">📈 累计日</button>
+    <button class="tab" data-tab="stats">📊 统计</button>
+  </nav>
+
+  <!-- 主内容区 -->
+  <main class="main-content">
+    <div id="tab-all" class="tab-content active">
+      <div class="sort-bar" id="sortBar-all"></div>
+    </div>
+    <div id="tab-countdown" class="tab-content">
+      <div class="sort-bar" id="sortBar-countdown"></div>
+    </div>
+    <div id="tab-recurring" class="tab-content">
+      <div class="sort-bar" id="sortBar-recurring"></div>
+    </div>
+    <div id="tab-accumulate" class="tab-content">
+      <div class="sort-bar" id="sortBar-accumulate"></div>
+    </div>
+    <div id="tab-stats" class="tab-content"></div>
+  </main>
+
+  <!-- 浮动添加按钮 -->
+  <button class="fab" id="fabBtn" onclick="openAddModal()">＋</button>
+
+  <!-- 添加/编辑弹窗 -->
+  <div class="modal-overlay" id="modalOverlay" style="display:none">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 id="modalTitle">添加事件</h3>
+        <button class="modal-close" onclick="closeModal()">✕</button>
+      </div>
+      <form id="eventForm" onsubmit="saveEvent(event)">
+        <input type="hidden" id="evId">
+        <div class="form-group">
+          <label>标题 *</label>
+          <input type="text" id="evTitle" class="form-input" required placeholder="事件名称">
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>类型</label>
+            <select id="evType" class="form-select">
+              <option value="countdown">倒数日</option>
+              <option value="accumulate">累计日</option>
+              <option value="recurring">循环日（每年）</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>分类</label>
+            <select id="evCategory" class="form-select">
+              <option value="family">🏠 家庭</option>
+              <option value="anniversary">💝 纪念日</option>
+              <option value="work">💼 工作/考试</option>
+              <option value="habit">🎯 习惯打卡</option>
+              <option value="life">📋 生活/资产</option>
+              <option value="holiday">🎉 节假日</option>
+              <option value="other">📌 其他</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>公历日期 *</label>
+          <input type="date" id="evDate" class="form-input" required onchange="onSolarDateChange()">
+        </div>
+        <div class="form-group" id="lunarGroup">
+          <label><input type="checkbox" id="evIsLunar" onchange="toggleLunar()"> 使用农历（每年按农历重复）</label>
+          <div id="lunarInputs" style="display:none; margin-top:8px;">
+            <div class="form-row">
+              <div class="form-group" style="flex:1">
+                <label>农历月</label>
+                <select id="evLunarMonth" class="form-select" onchange="onLunarChange()">
+                  <option value="1">正月</option><option value="2">二月</option>
+                  <option value="3">三月</option><option value="4">四月</option>
+                  <option value="5">五月</option><option value="6">六月</option>
+                  <option value="7">七月</option><option value="8">八月</option>
+                  <option value="9">九月</option><option value="10">十月</option>
+                  <option value="11">冬月</option><option value="12">腊月</option>
+                </select>
+              </div>
+              <div class="form-group" style="flex:1">
+                <label>农历日</label>
+                <select id="evLunarDay" class="form-select" onchange="onLunarChange()">
+                  <option value="1">初一</option><option value="2">初二</option>
+                  <option value="3">初三</option><option value="4">初四</option>
+                  <option value="5">初五</option><option value="6">初六</option>
+                  <option value="7">初七</option><option value="8">初八</option>
+                  <option value="9">初九</option><option value="10">初十</option>
+                  <option value="11">十一</option><option value="12">十二</option>
+                  <option value="13">十三</option><option value="14">十四</option>
+                  <option value="15">十五</option><option value="16">十六</option>
+                  <option value="17">十七</option><option value="18">十八</option>
+                  <option value="19">十九</option><option value="20">二十</option>
+                  <option value="21">廿一</option><option value="22">廿二</option>
+                  <option value="23">廿三</option><option value="24">廿四</option>
+                  <option value="25">廿五</option><option value="26">廿六</option>
+                  <option value="27">廿七</option><option value="28">廿八</option>
+                  <option value="29">廿九</option><option value="30">三十</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>提前提醒天数</label>
+          <input type="number" id="evAdvanceDays" class="form-input" value="3" min="0" max="365" placeholder="默认3天前提醒，0=当天提醒">
+        </div>
+        <div class="form-group">
+          <label>备注/备忘</label>
+          <textarea id="evNote" class="form-input" rows="2" placeholder="比如：提前订蛋糕、买什么礼物..."></textarea>
+        </div>
+        <div class="form-group">
+          <label><input type="checkbox" id="evPinned"> 置顶显示</label>
+        </div>
+        <div class="form-actions">
+          <button type="button" class="btn btn-delete" id="btnDelete" style="display:none" onclick="deleteCurrentEvent()">删除</button>
+          <button type="submit" class="btn btn-primary">保存</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 日历订阅弹窗 -->
+  <div class="modal-overlay" id="calModal" style="display:none">
+    <div class="modal modal-sm">
+      <div class="modal-header">
+        <h3>📅 日历订阅</h3>
+        <button class="modal-close" onclick="document.getElementById('calModal').style.display='none'">✕</button>
+      </div>
+      <div class="modal-body">
+        <p>将以下链接添加到 Google Calendar / Apple Calendar 即可同步所有事件：</p>
+        <div class="copy-box">
+          <input type="text" id="calUrl" class="form-input" readonly>
+          <button onclick="copyCalUrl()">复制</button>
+        </div>
+        <div class="cal-tips">
+          <p><b>Google Calendar：</b>左侧菜单 → 其他日历 → 按 URL 添加 → 粘贴链接</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 设置页面 -->
+  <div class="modal-overlay" id="settingsModal" style="display:none">
+    <div class="modal">
+      <div class="modal-header">
+        <h3>⚙️ 设置</h3>
+        <button class="modal-close" onclick="document.getElementById('settingsModal').style.display='none'">✕</button>
+      </div>
+      <div class="modal-body" style="max-height:65vh;overflow-y:auto;">
+
+        <!-- 推送设置 -->
+        <h4 style="margin:4px 0 10px;color:var(--accent)">🔔 推送设置</h4>
+
+        <h5 style="margin:10px 0 6px;color:var(--text-secondary)">企业微信</h5>
+        <div class="form-group"><label>Webhook URL</label><input type="text" id="pushWecom" class="form-input" placeholder="https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=..."></div>
+
+        <h5 style="margin:14px 0 6px;color:var(--text-secondary)">邮件 SMTP</h5>
+        <div class="form-row">
+          <div class="form-group" style="flex:2"><label>SMTP 主机</label><input type="text" id="pushSmtpHost" class="form-input" placeholder="smtp.exmail.qq.com"></div>
+          <div class="form-group" style="flex:1"><label>端口</label><input type="text" id="pushSmtpPort" class="form-input" placeholder="465"></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group" style="flex:1"><label>账号</label><input type="text" id="pushSmtpUser" class="form-input" placeholder="发件邮箱"></div>
+          <div class="form-group" style="flex:1"><label>密码/授权码</label><input type="password" id="pushSmtpPass" class="form-input" placeholder="留空不改"></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group" style="flex:1"><label>发件人</label><input type="text" id="pushSmtpFrom" class="form-input" placeholder="同账号即可"></div>
+          <div class="form-group" style="flex:1"><label>收件人（逗号分隔）</label><input type="text" id="pushSmtpTo" class="form-input" placeholder="xxx@qq.com"></div>
+        </div>
+        <div class="form-group"><label><input type="checkbox" id="pushSmtpSsl" checked> 使用 SSL</label></div>
+
+        <h5 style="margin:14px 0 6px;color:var(--text-secondary)">Telegram</h5>
+        <div class="form-row">
+          <div class="form-group" style="flex:1"><label>Bot Token</label><input type="text" id="pushTgToken" class="form-input" placeholder="123456:ABC..."></div>
+          <div class="form-group" style="flex:1"><label>Chat ID</label><input type="text" id="pushTgChatId" class="form-input" placeholder="聊天ID"></div>
+        </div>
+
+        <div style="display:flex;gap:8px;margin-top:16px;">
+          <button class="btn btn-primary" style="flex:1;" onclick="savePushSettings()">保存推送设置</button>
+          <button class="btn" style="flex:1;background:var(--border);color:var(--text);" onclick="testNotify()">📨 测试推送</button>
+        </div>
+
+        <hr style="margin:20px 0;border:none;border-top:1px solid var(--border);">
+
+        <!-- 密码修改 -->
+        <h4 style="margin:4px 0 10px;color:var(--accent)">🔑 修改密码</h4>
+        <div class="form-group"><label>当前密码</label><input type="password" id="oldPassword" class="form-input" placeholder="输入当前密码"></div>
+        <div class="form-group"><label>新密码</label><input type="password" id="newPassword" class="form-input" placeholder="至少4位"></div>
+        <div class="form-group"><label>确认新密码</label><input type="password" id="newPassword2" class="form-input" placeholder="再次输入新密码"></div>
+        <button class="btn btn-primary" style="width:100%;" onclick="changePassword()">修改密码</button>
+
+        <p id="settingsMsg" style="text-align:center;margin-top:12px;font-size:14px;display:none;"></p>
+      </div>
+    </div>
+  </div>
+
+  <!-- 自定义确认弹窗 -->
+  <div class="modal-overlay" id="confirmModal" style="display:none">
+    <div class="modal modal-sm">
+      <div class="modal-body" style="text-align:center; padding:28px 20px;">
+        <p id="confirmText" style="font-size:16px; margin-bottom:20px;white-space:pre-line;"></p>
+        <div style="display:flex; gap:12px; justify-content:center;">
+          <button class="btn" style="background:var(--border); color:var(--text);" onclick="closeConfirm(false)">取消</button>
+          <button class="btn btn-delete" onclick="closeConfirm(true)">确认</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 底部工具栏 -->
+  <footer class="footer">
+    <button class="tool-btn" onclick="showCalendarModal()">📅 日历</button>
+    <button class="tool-btn" onclick="exportData()">⬇ 导出</button>
+    <button class="tool-btn" onclick="document.getElementById('importFile').click()">⬆ 导入</button>
+    <input type="file" id="importFile" accept=".json" style="display:none" onchange="importData(event)">
+    <button class="tool-btn" onclick="showSettings()">⚙️ 设置</button>
+    <button class="tool-btn" onclick="doLogout()">🚪 退出</button>
+    <button class="tool-btn theme-btn" onclick="toggleTheme()">🌙 暗色</button>
+  </footer>
+</div>
+<script src="/static/app.js"></script>
+</body>
+</html>

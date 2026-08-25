@@ -1,0 +1,679 @@
+/* DaysHub 时光看板 — 前端逻辑 v1.2.0 */
+let dashboardData = null;
+let currentTab = 'all';
+let searchResults = null;
+
+// ========== 密码认证（一年有效期） ==========
+const TOKEN_KEY = 'dayshub_token';
+const TOKEN_EXPIRY_KEY = 'dayshub_token_expiry';
+const ONE_YEAR_MS = 365 * 24 * 60 * 60 * 1000;
+
+function getToken() {
+  const token = localStorage.getItem(TOKEN_KEY);
+  const expiry = parseInt(localStorage.getItem(TOKEN_EXPIRY_KEY) || '0');
+  if (!token) return null;
+  if (Date.now() > expiry) {
+    localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(TOKEN_EXPIRY_KEY);
+    return null;
+  }
+  return token;
+}
+
+function saveAuth(token) {
+  localStorage.setItem(TOKEN_KEY, token);
+  localStorage.setItem(TOKEN_EXPIRY_KEY, String(Date.now() + ONE_YEAR_MS));
+}
+
+function authHeaders(extra = {}) {
+  const h = { ...extra };
+  const t = getToken();
+  if (t) h['Authorization'] = `Bearer ${t}`;
+  return h;
+}
+
+function checkAuth() {
+  const token = getToken();
+  if (token) { showApp(); } else { showLogin(); }
+}
+
+function showLogin() {
+  document.getElementById('loginPage').style.display = 'flex';
+  document.getElementById('app').style.display = 'none';
+  const input = document.getElementById('loginPassword');
+  if (input) input.value = '';
+}
+
+function showApp() {
+  document.getElementById('loginPage').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+}
+
+async function doLogin(e) {
+  e.preventDefault();
+  const password = document.getElementById('loginPassword').value.trim();
+  const errEl = document.getElementById('loginError');
+  errEl.style.display = 'none';
+  try {
+    const resp = await fetch('/api/login', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password }),
+    });
+    if (resp.ok) {
+      const data = await resp.json();
+      if (data.ok) {
+        saveAuth(data.token || password);
+        showApp();
+        loadTheme();
+        loadDashboard();
+        setupTabs();
+      } else { errEl.style.display = 'block'; }
+    } else { errEl.style.display = 'block'; }
+  } catch (err) {
+    errEl.textContent = '网络错误';
+    errEl.style.display = 'block';
+  }
+}
+
+function doLogout() {
+  showConfirm('确认退出登录？', () => {
+    localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(TOKEN_EXPIRY_KEY);
+    showLogin();
+  });
+}
+
+async function apiFetch(url, options = {}) {
+  const resp = await fetch(url, { ...options, headers: authHeaders(options.headers || {}) });
+  if (resp.status === 401) { showLogin(); throw new Error('Unauthorized'); }
+  return resp;
+}
+
+// ========== 确认弹窗 ==========
+let _confirmCallback = null;
+function showConfirm(text, callback) {
+  document.getElementById('confirmText').textContent = text;
+  document.getElementById('confirmModal').style.display = 'flex';
+  _confirmCallback = callback;
+}
+function closeConfirm(confirmed) {
+  document.getElementById('confirmModal').style.display = 'none';
+  if (confirmed && _confirmCallback) _confirmCallback();
+  _confirmCallback = null;
+}
+
+// ========== 初始化 ==========
+document.addEventListener('DOMContentLoaded', () => {
+  checkAuth();
+  if (getToken()) {
+    loadTheme();
+    loadDashboard();
+    setupTabs();
+  }
+});
+
+// ========== 看板数据 ==========
+async function loadDashboard() {
+  try {
+    const resp = await apiFetch('/api/dashboard');
+    dashboardData = await resp.json();
+    renderHeader();
+    renderToday();
+    renderTabs();
+  } catch (e) { console.error('加载失败:', e); }
+}
+
+// ========== 搜索 ==========
+async function doSearch() {
+  const q = document.getElementById('searchInput').value.trim();
+  const cat = document.getElementById('searchCategory').value;
+  if (!q && !cat) { searchResults = null; renderTabs(); return; }
+  const params = new URLSearchParams();
+  if (q) params.set('q', q);
+  if (cat) params.set('category', cat);
+  const resp = await apiFetch('/api/events/search?' + params.toString());
+  searchResults = await resp.json();
+  document.querySelectorAll('.tab').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+  document.querySelector('[data-tab="all"]').classList.add('active');
+  document.getElementById('tab-all').classList.add('active');
+  currentTab = 'all';
+  renderAll();
+}
+
+// ========== 渲染头部 ==========
+function renderHeader() {
+  const d = dashboardData;
+  const lunar = d.lunar.chinese_str || '';
+  const term = d.solar_term ? ` · 🌿 ${d.solar_term}` : '';
+  document.getElementById('dateInfo').innerHTML =
+    `${d.date} · ${lunar} · ${d.shengxiao}年${d.ganzhi}${term}`;
+  const yp = d.year_progress;
+  const mp = d.month_progress;
+  document.getElementById('progressBars').innerHTML = `
+    <div class="progress-item">
+      <div class="progress-label"><span>📊 今年</span><span>${yp.passed}/${yp.total}天 · ${yp.percent}%</span></div>
+      <div class="progress-bar"><div class="progress-fill" style="width:${yp.percent}%"></div></div>
+    </div>
+    <div class="progress-item">
+      <div class="progress-label"><span>📅 本月</span><span>${mp.passed}/${mp.total}天 · ${mp.percent}%</span></div>
+      <div class="progress-bar"><div class="progress-fill" style="width:${mp.percent}%"></div></div>
+    </div>`;
+}
+
+// ========== 渲染今日 ==========
+function renderToday() {
+  const events = dashboardData.today_events || [];
+  const section = document.getElementById('todaySection');
+  if (events.length === 0) { section.style.display = 'none'; return; }
+  section.style.display = 'block';
+  document.getElementById('todayEvents').innerHTML = events.map(ev => `
+    <div class="today-card" style="border-color:${ev.color}" onclick="editEvent(${ev.id})">
+      <span class="icon">${ev.icon}</span>
+      <div class="info">
+        <div class="title">${ev.title}</div>
+        ${ev.note ? `<div class="note">📝 ${ev.note}</div>` : ''}
+      </div>
+      ${ev.age ? `<span class="age-badge" style="background:${ev.color}">第${ev.age}年</span>` : ''}
+    </div>`).join('');
+}
+
+// ========== 排序 ==========
+let sortState = {};
+const SORT_OPTIONS = {
+  countdown: [
+    {field: 'days_remaining', label: '距离天数', order: 'asc'},
+    {field: 'title', label: '名称', order: 'asc'},
+    {field: 'next_date', label: '日期', order: 'asc'},
+  ],
+  recurring: [
+    {field: 'days_remaining', label: '距离天数', order: 'asc'},
+    {field: 'title', label: '名称', order: 'asc'},
+    {field: 'next_date', label: '日期', order: 'asc'},
+  ],
+  accumulate: [
+    {field: 'days_passed', label: '已过天数', order: 'desc'},
+    {field: 'title', label: '名称', order: 'asc'},
+    {field: 'date', label: '起始日期', order: 'asc'},
+  ],
+  all: [
+    {field: 'days_remaining', label: '距离天数', order: 'asc'},
+    {field: 'days_passed', label: '已过天数', order: 'desc'},
+    {field: 'title', label: '名称', order: 'asc'},
+    {field: 'date', label: '日期', order: 'asc'},
+  ],
+};
+
+function renderSortBar(tabKey) {
+  const bar = document.getElementById('sortBar-' + tabKey);
+  if (!bar) return;
+  const opts = SORT_OPTIONS[tabKey] || [];
+  if (!opts.length) { bar.innerHTML = ''; return; }
+  const cur = sortState[tabKey] || opts[0];
+  let html = '<span class="sort-label">排序：</span>';
+  for (const opt of opts) {
+    const active = cur.field === opt.field;
+    const arrow = active ? (cur.order === 'asc' ? ' ↑' : ' ↓') : '';
+    const cls = active ? 'sort-btn active' : 'sort-btn';
+    html += `<button class="${cls}" onclick="setSort('${tabKey}','${opt.field}','${opt.order}')">${opt.label}${arrow}</button>`;
+  }
+  bar.innerHTML = html;
+}
+
+function setSort(tabKey, field, defaultOrder) {
+  const cur = sortState[tabKey];
+  if (cur && cur.field === field) { cur.order = cur.order === 'asc' ? 'desc' : 'asc'; }
+  else { sortState[tabKey] = {field, order: defaultOrder}; }
+  renderSortBar(tabKey);
+  if (tabKey === 'countdown') renderCountdown();
+  else if (tabKey === 'recurring') renderRecurring();
+  else if (tabKey === 'accumulate') renderAccumulate();
+  else if (tabKey === 'all') renderAll();
+}
+
+function getSortedList(list, tabKey) {
+  const cur = sortState[tabKey] || (SORT_OPTIONS[tabKey] && SORT_OPTIONS[tabKey][0]);
+  if (!cur) return list;
+  const sorted = [...list];
+  sorted.sort((a, b) => {
+    let va = a[cur.field], vb = b[cur.field];
+    if (a.is_pinned && !b.is_pinned) return -1;
+    if (!a.is_pinned && b.is_pinned) return 1;
+    if (va == null) return 1;
+    if (vb == null) return -1;
+    if (typeof va === 'string') return cur.order === 'asc' ? va.localeCompare(vb) : vb.localeCompare(va);
+    return cur.order === 'asc' ? va - vb : vb - va;
+  });
+  return sorted;
+}
+
+// ========== 渲染标签 ==========
+function renderTabs() {
+  renderSortBar('countdown');
+  renderSortBar('recurring');
+  renderSortBar('accumulate');
+  renderSortBar('all');
+  renderCountdown();
+  renderRecurring();
+  renderAccumulate();
+  renderAll();
+  renderStats();
+}
+
+function renderCountdown() {
+  const list = getSortedList(dashboardData.countdown || [], 'countdown');
+  const container = document.getElementById('tab-countdown');
+  if (!list.length) { container.innerHTML = '<div class="sort-bar" id="sortBar-countdown"></div><div class="empty">暂无倒数事件</div>'; renderSortBar('countdown'); return; }
+  container.innerHTML = '<div class="sort-bar" id="sortBar-countdown"></div>' + list.map(ev => renderEventCard(ev)).join('');
+  renderSortBar('countdown');
+}
+
+function renderRecurring() {
+  const list = getSortedList(dashboardData.recurring || [], 'recurring');
+  const container = document.getElementById('tab-recurring');
+  if (!list.length) { container.innerHTML = '<div class="sort-bar" id="sortBar-recurring"></div><div class="empty">暂无循环事件</div>'; renderSortBar('recurring'); return; }
+  container.innerHTML = '<div class="sort-bar" id="sortBar-recurring"></div>' + list.map(ev => renderEventCard(ev)).join('');
+  renderSortBar('recurring');
+}
+
+function renderAccumulate() {
+  const list = getSortedList(dashboardData.accumulate || [], 'accumulate');
+  const container = document.getElementById('tab-accumulate');
+  if (!list.length) { container.innerHTML = '<div class="sort-bar" id="sortBar-accumulate"></div><div class="empty">暂无累计事件</div>'; renderSortBar('accumulate'); return; }
+  container.innerHTML = '<div class="sort-bar" id="sortBar-accumulate"></div>' + list.map(ev => renderAccumCard(ev)).join('');
+  renderSortBar('accumulate');
+}
+
+function renderAll() {
+  let list;
+  if (searchResults) { list = searchResults; } else { list = dashboardData.all_events || []; }
+  list = getSortedList(list, 'all');
+  const container = document.getElementById('tab-all');
+  if (!list.length) { container.innerHTML = '<div class="sort-bar" id="sortBar-all"></div><div class="empty">暂无事件</div>'; renderSortBar('all'); return; }
+  container.innerHTML = '<div class="sort-bar" id="sortBar-all"></div>' + list.map(ev => {
+    if (ev.event_type === 'accumulate') return renderAccumCard(ev);
+    return renderEventCard(ev);
+  }).join('');
+  renderSortBar('all');
+}
+
+function renderEventCard(ev) {
+  const days = ev.days_remaining;
+  const isToday = ev.is_today;
+  const sub = ev.lunar_str || (ev.next_date ? `公历 ${ev.next_date}` : ev.date);
+  const ageStr = ev.age ? ` · 第${ev.age}年` : '';
+  const pinIcon = ev.is_pinned ? '📌 ' : '';
+  let daysHtml;
+  if (isToday) { daysHtml = '<span class="ev-badge-today">🎉 今天</span>'; }
+  else if (days !== null && days !== undefined) {
+    daysHtml = `<div class="ev-days"><div class="ev-days-num" style="color:${ev.color}">${days}</div><div class="ev-days-unit">天后</div></div>`;
+  } else { daysHtml = ''; }
+  return `<div class="event-card ${ev.is_pinned ? 'pinned' : ''}" style="border-color:${ev.color}" onclick="editEvent(${ev.id})">
+    <span class="ev-icon">${ev.icon}</span>
+    <div class="ev-info">
+      <div class="ev-title">${pinIcon}${ev.title}${ageStr}</div>
+      <div class="ev-sub">${sub}${ev.note ? ' · 📝 ' + ev.note : ''}</div>
+    </div>
+    ${daysHtml}
+  </div>`;
+}
+
+function renderAccumCard(ev) {
+  const days = ev.days_passed || 0;
+  const ms = ev.next_milestone;
+  const msStr = ms ? ` · 下个里程碑: ${ms.milestone}天 (${ms.date})` : '';
+  const pinIcon = ev.is_pinned ? '📌 ' : '';
+  let msDots = '';
+  if (ev.milestones) {
+    msDots = `<div class="milestone-bar">${ev.milestones.map(m => {
+      const cls = m.is_passed ? 'reached' : (m.milestone === ms?.milestone ? 'next' : '');
+      return `<span class="milestone-dot ${cls}" title="${m.milestone}天"></span>`;
+    }).join('')}</div>`;
+  }
+  return `<div class="event-card ${ev.is_pinned ? 'pinned' : ''}" style="border-color:${ev.color}" onclick="editEvent(${ev.id})">
+    <span class="ev-icon">${ev.icon}</span>
+    <div class="ev-info">
+      <div class="ev-title">${pinIcon}${ev.title}</div>
+      <div class="ev-sub">从 ${ev.date} 起${msStr}</div>
+      ${msDots}
+    </div>
+    <div class="ev-days"><div class="ev-days-num" style="color:${ev.color}">${days}</div><div class="ev-days-unit">天已过</div></div>
+  </div>`;
+}
+
+function renderStats() {
+  const d = dashboardData;
+  const all = d.all_events || [];
+  const byCategory = {};
+  all.forEach(e => { byCategory[e.category] = (byCategory[e.category] || 0) + 1; });
+  const catHtml = Object.entries(byCategory).map(([k, v]) => {
+    const cat = d.categories[k] || { name: k, icon: '📌', color: '#ccc' };
+    return `<div class="stat-card" style="border-top:3px solid ${cat.color}">
+      <div class="stat-val">${v}</div><div class="stat-label">${cat.icon} ${cat.name}</div></div>`;
+  }).join('');
+  document.getElementById('tab-stats').innerHTML = `
+    <div class="stats-grid">
+      <div class="stat-card"><div class="stat-val">${all.length}</div><div class="stat-label">总事件数</div></div>
+      <div class="stat-card"><div class="stat-val">${(d.today_events||[]).length}</div><div class="stat-label">今日到期</div></div>
+      <div class="stat-card"><div class="stat-val">${d.year_progress.percent}%</div><div class="stat-label">年度进度</div></div>
+      <div class="stat-card"><div class="stat-val">${d.month_progress.percent}%</div><div class="stat-label">月度进度</div></div>
+    </div>
+    <h2 class="section-title" style="margin-top:16px">📂 分类统计</h2>
+    <div class="stats-grid">${catHtml}</div>`;
+}
+
+// ========== 标签切换 ==========
+function setupTabs() {
+  document.querySelectorAll('.tab').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.tab').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+      btn.classList.add('active');
+      const tab = btn.dataset.tab;
+      currentTab = tab;
+      document.getElementById('tab-' + tab).classList.add('active');
+      if (searchResults) {
+        searchResults = null;
+        document.getElementById('searchInput').value = '';
+        document.getElementById('searchCategory').value = '';
+        renderTabs();
+      }
+    });
+  });
+}
+
+// ========== 添加/编辑事件 ==========
+function openAddModal() {
+  document.getElementById('modalTitle').textContent = '添加事件';
+  document.getElementById('eventForm').reset();
+  document.getElementById('evId').value = '';
+  document.getElementById('evType').value = 'countdown';
+  document.getElementById('evCategory').value = 'family';
+  document.getElementById('evDate').value = new Date().toISOString().slice(0, 10);
+  document.getElementById('evAdvanceDays').value = 3;
+  document.getElementById('lunarInputs').style.display = 'none';
+  document.getElementById('evIsLunar').checked = false;
+  document.getElementById('btnDelete').style.display = 'none';
+  document.getElementById('modalOverlay').style.display = 'flex';
+  onSolarDateChange();
+}
+
+async function editEvent(id) {
+  const resp = await apiFetch('/api/events');
+  const events = await resp.json();
+  const ev = events.find(e => e.id === id);
+  if (!ev) return;
+  document.getElementById('modalTitle').textContent = '编辑事件';
+  document.getElementById('evId').value = ev.id;
+  document.getElementById('evTitle').value = ev.title;
+  document.getElementById('evType').value = ev.event_type;
+  document.getElementById('evCategory').value = ev.category;
+  document.getElementById('evDate').value = ev.date;
+  document.getElementById('evNote').value = ev.note || '';
+  document.getElementById('evPinned').checked = !!ev.is_pinned;
+  document.getElementById('evAdvanceDays').value = ev.advance_days != null ? ev.advance_days : 3;
+  if (ev.lunar_month && ev.lunar_day) {
+    document.getElementById('evIsLunar').checked = true;
+    document.getElementById('lunarInputs').style.display = 'block';
+    document.getElementById('evLunarMonth').value = ev.lunar_month;
+    document.getElementById('evLunarDay').value = ev.lunar_day;
+    onLunarChange();
+  } else {
+    document.getElementById('evIsLunar').checked = false;
+    document.getElementById('lunarInputs').style.display = 'none';
+    onSolarDateChange();
+  }
+  document.getElementById('btnDelete').style.display = 'block';
+  document.getElementById('modalOverlay').style.display = 'flex';
+}
+
+function closeModal() {
+  document.getElementById('modalOverlay').style.display = 'none';
+}
+
+function toggleLunar() {
+  const checked = document.getElementById('evIsLunar').checked;
+  document.getElementById('lunarInputs').style.display = checked ? 'block' : 'none';
+  if (checked) {
+    document.getElementById('evType').value = 'recurring';
+    onLunarChange();
+  }
+}
+
+let _syncing = false;
+async function onSolarDateChange() {
+  if (_syncing) return;
+  const dateStr = document.getElementById('evDate').value;
+  if (!dateStr) return;
+  try {
+    const resp = await apiFetch(`/api/lunar/${dateStr}`);
+    const data = await resp.json();
+    if (data.lunar_month && data.lunar_day) {
+      _syncing = true;
+      document.getElementById('evLunarMonth').value = data.lunar_month;
+      document.getElementById('evLunarDay').value = data.lunar_day;
+      _syncing = false;
+    }
+  } catch (err) {}
+}
+
+async function onLunarChange() {
+  if (_syncing) return;
+  const month = parseInt(document.getElementById('evLunarMonth').value);
+  const day = parseInt(document.getElementById('evLunarDay').value);
+  const dateStr = document.getElementById('evDate').value;
+  if (!dateStr) return;
+  const year = new Date(dateStr).getFullYear();
+  try {
+    const resp = await apiFetch(`/api/lunar_to_solar/${year}/${month}/${day}`);
+    const data = await resp.json();
+    if (data.date) {
+      _syncing = true;
+      document.getElementById('evDate').value = data.date;
+      _syncing = false;
+    }
+  } catch (err) {}
+}
+
+async function saveEvent(e) {
+  e.preventDefault();
+  const id = document.getElementById('evId').value;
+  const isLunar = document.getElementById('evIsLunar').checked;
+  const data = {
+    title: document.getElementById('evTitle').value,
+    event_type: document.getElementById('evType').value,
+    category: document.getElementById('evCategory').value,
+    date: document.getElementById('evDate').value,
+    note: document.getElementById('evNote').value,
+    is_pinned: document.getElementById('evPinned').checked ? 1 : 0,
+    advance_days: parseInt(document.getElementById('evAdvanceDays').value) || 3,
+  };
+  if (isLunar) {
+    data.lunar_month = parseInt(document.getElementById('evLunarMonth').value);
+    data.lunar_day = parseInt(document.getElementById('evLunarDay').value);
+    data.is_recurring = 1;
+    data.event_type = 'recurring';
+    try {
+      const resp = await apiFetch(`/api/lunar_to_solar/${new Date(data.date).getFullYear()}/${data.lunar_month}/${data.lunar_day}`);
+      const result = await resp.json();
+      if (result.date) data.date = result.date;
+    } catch (err) {}
+  }
+  const url = id ? `/api/events/${id}` : '/api/events';
+  const method = id ? 'PUT' : 'POST';
+  const resp = await apiFetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+  if (resp.ok) { closeModal(); await loadDashboard(); }
+  else if (resp.status === 401) { showLogin(); }
+  else { showConfirm('保存失败，请重试', () => {}); }
+}
+
+async function deleteCurrentEvent() {
+  const id = document.getElementById('evId').value;
+  if (!id) return;
+  showConfirm('确认删除这个事件？', async () => {
+    const resp = await apiFetch(`/api/events/${id}`, { method: 'DELETE' });
+    if (resp.ok) { closeModal(); await loadDashboard(); }
+    else if (resp.status === 401) { showLogin(); }
+  });
+}
+
+// ========== 日历订阅 ==========
+function showCalendarModal() {
+  const token = getToken() || '';
+  const url = location.origin + '/api/calendar.ics?token=' + encodeURIComponent(token);
+  document.getElementById('calUrl').value = url;
+  document.getElementById('calModal').style.display = 'flex';
+}
+
+function copyCalUrl() {
+  const input = document.getElementById('calUrl');
+  input.select(); input.setSelectionRange(0, 99999);
+  if (navigator.clipboard) { navigator.clipboard.writeText(input.value); }
+  showConfirm('已复制到剪贴板', () => {});
+}
+
+// ========== 导入导出 ==========
+function exportData() {
+  apiFetch('/api/export').then(r => r.json()).then(data => {
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `dayshub_export_${new Date().toISOString().slice(0,10)}.json`;
+    a.click();
+  });
+}
+
+function importData(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = async (ev) => {
+    const data = JSON.parse(ev.target.result);
+    const resp = await apiFetch('/api/import?replace=true', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    if (resp.ok) {
+      const result = await resp.json();
+      showConfirm(`导入完成: ${result.imported} 条`, () => {});
+      await loadDashboard();
+    } else if (resp.status === 401) { showLogin(); }
+  };
+  reader.readAsText(file);
+}
+
+// ========== 设置页面 ==========
+function showSettings() {
+  // 加载推送设置
+  apiFetch('/api/settings/push').then(r => r.json()).then(cfg => {
+    document.getElementById('pushWecom').value = cfg.wecom_webhook || '';
+    document.getElementById('pushSmtpHost').value = cfg.smtp_host || '';
+    document.getElementById('pushSmtpPort').value = cfg.smtp_port || '';
+    document.getElementById('pushSmtpUser').value = cfg.smtp_user || '';
+    document.getElementById('pushSmtpPass').value = cfg.smtp_pass || '';
+    document.getElementById('pushSmtpFrom').value = cfg.smtp_from || '';
+    document.getElementById('pushSmtpTo').value = cfg.smtp_to || '';
+    document.getElementById('pushSmtpSsl').checked = (cfg.smtp_ssl || 'true').toLowerCase() === 'true';
+    document.getElementById('pushTgToken').value = cfg.tg_bot_token || '';
+    document.getElementById('pushTgChatId').value = cfg.tg_chat_id || '';
+  }).catch(() => {});
+  // 清空密码修改
+  document.getElementById('oldPassword').value = '';
+  document.getElementById('newPassword').value = '';
+  document.getElementById('newPassword2').value = '';
+  document.getElementById('settingsMsg').style.display = 'none';
+  document.getElementById('settingsModal').style.display = 'flex';
+}
+
+function showSettingsMsg(msg, isError) {
+  const el = document.getElementById('settingsMsg');
+  el.textContent = msg;
+  el.style.color = isError ? '#e74c3c' : '#27ae60';
+  el.style.display = 'block';
+}
+
+async function savePushSettings() {
+  const data = {
+    wecom_webhook: document.getElementById('pushWecom').value.trim(),
+    smtp_host: document.getElementById('pushSmtpHost').value.trim(),
+    smtp_port: document.getElementById('pushSmtpPort').value.trim(),
+    smtp_user: document.getElementById('pushSmtpUser').value.trim(),
+    smtp_pass: document.getElementById('pushSmtpPass').value,
+    smtp_from: document.getElementById('pushSmtpFrom').value.trim(),
+    smtp_to: document.getElementById('pushSmtpTo').value.trim(),
+    smtp_ssl: document.getElementById('pushSmtpSsl').checked ? 'true' : 'false',
+    tg_bot_token: document.getElementById('pushTgToken').value.trim(),
+    tg_chat_id: document.getElementById('pushTgChatId').value.trim(),
+  };
+  try {
+    const resp = await apiFetch('/api/settings/push', {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    if (resp.ok) { showSettingsMsg('✅ 推送设置已保存', false); }
+    else if (resp.status === 401) { showLogin(); }
+    else { showSettingsMsg('保存失败，请重试', true); }
+  } catch (err) { showSettingsMsg('保存失败：网络错误', true); }
+}
+
+async function changePassword() {
+  const oldPass = document.getElementById('oldPassword').value;
+  const newPass = document.getElementById('newPassword').value;
+  const newPass2 = document.getElementById('newPassword2').value;
+  if (!oldPass || !newPass) { showSettingsMsg('请填写旧密码和新密码', true); return; }
+  if (newPass !== newPass2) { showSettingsMsg('两次新密码不一致', true); return; }
+  if (newPass.length < 4) { showSettingsMsg('新密码至少4位', true); return; }
+  try {
+    const resp = await apiFetch('/api/settings/password', {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ old_password: oldPass, new_password: newPass }),
+    });
+    const data = await resp.json();
+    if (resp.ok && data.ok) {
+      showSettingsMsg('✅ 密码修改成功，请重新登录', false);
+      // 更新本地token
+      saveAuth(newPass);
+      // 清空密码框
+      document.getElementById('oldPassword').value = '';
+      document.getElementById('newPassword').value = '';
+      document.getElementById('newPassword2').value = '';
+    } else {
+      showSettingsMsg(data.error || '修改失败', true);
+    }
+  } catch (err) { showSettingsMsg('网络错误', true); }
+}
+
+async function testNotify() {
+  showConfirm('确认测试推送？将向所有已配置的通道发送测试消息。', async () => {
+    try {
+      const resp = await apiFetch('/api/notify/test', { method: 'POST' });
+      const data = await resp.json();
+      if (resp.ok && data.ok) {
+        showConfirm(data.msg, () => {});
+      } else {
+        // 推送失败也要显示错误详情
+        showConfirm(data.msg || '推送失败', () => {});
+      }
+    } catch (err) {
+      if (err.message !== 'Unauthorized') showConfirm('推送失败：网络错误', () => {});
+    }
+  });
+}
+
+// ========== 暗色模式 ==========
+function toggleTheme() {
+  const current = document.documentElement.getAttribute('data-theme');
+  const next = current === 'dark' ? '' : 'dark';
+  if (next) { document.documentElement.setAttribute('data-theme', 'dark'); }
+  else { document.documentElement.removeAttribute('data-theme'); }
+  localStorage.setItem('dayshub-theme', next);
+  document.querySelector('.theme-btn').textContent = next ? '☀️ 亮色' : '🌙 暗色';
+}
+
+function loadTheme() {
+  const saved = localStorage.getItem('dayshub-theme');
+  if (saved === 'dark') {
+    document.documentElement.setAttribute('data-theme', 'dark');
+    document.querySelector('.theme-btn').textContent = '☀️ 亮色';
+  }
+}
