@@ -117,7 +117,8 @@ def create_app():
     def board():
         return render_template("index.html", board_mode=True, version=VERSION)
 
-    # ========== 登录验证（带防爆破频控） ==========
+    # ========== 注册与登录验证（带防爆破频控） ==========
+
     def _get_client_ip():
         xff = request.headers.get("X-Forwarded-For") or request.environ.get("HTTP_X_FORWARDED_FOR")
         if xff:
@@ -126,6 +127,72 @@ def create_app():
         if xri:
             return xri.strip()
         return request.remote_addr or "unknown"
+
+    @app.route("/api/system/public-info", methods=["GET"])
+    def api_public_info():
+        """获取公开系统配置（如是否开放注册）"""
+        from config import is_registration_allowed
+        return jsonify({
+            "ok": True,
+            "allow_registration": is_registration_allowed(),
+            "version": VERSION
+        })
+
+    @app.route("/api/register", methods=["POST"])
+    def api_register():
+        """用户注册接口"""
+        from config import is_registration_allowed, check_login_rate_limit, record_login_failure
+        from models import get_user_by_username, create_user, create_user_token
+        import re
+
+        client_ip = _get_client_ip()
+
+        # 1. 检查注册开关
+        if not is_registration_allowed():
+            return jsonify({"ok": False, "error": "管理员已关闭新用户自主注册"}), 403
+
+        # 2. 频控检查
+        allowed, remaining_sec = check_login_rate_limit(client_ip)
+        if not allowed:
+            mins = max(1, (remaining_sec + 59) // 60)
+            return jsonify({"ok": False, "error": f"操作过于频繁，请 {mins} 分钟后再试"}), 429
+
+        data = request.get_json() or {}
+        username = str(data.get("username", "")).strip()
+        password = str(data.get("password", ""))
+        display_name = str(data.get("display_name", "")).strip()
+
+        # 3. 校验参数
+        if not username or not password:
+            return jsonify({"ok": False, "error": "用户名和密码不能为空"}), 400
+        if len(username) < 2 or len(username) > 30:
+            return jsonify({"ok": False, "error": "用户名长度需在 2 到 30 个字符之间"}), 400
+        if not re.match(r'^[a-zA-Z0-9_\u4e00-\u9fa5]+$', username):
+            return jsonify({"ok": False, "error": "用户名仅支持中英文、数字和下划线"}), 400
+        if len(password) < 4:
+            return jsonify({"ok": False, "error": "密码长度至少 4 位"}), 400
+        if get_user_by_username(username):
+            return jsonify({"ok": False, "error": "该用户名已被注册，请更换"}), 400
+
+        # 4. 创建用户并颁发 Token
+        user = create_user(username, password, role="user", display_name=display_name)
+        if not user:
+            return jsonify({"ok": False, "error": "注册失败，请稍后重试"}), 500
+
+        token = create_user_token(user["id"])
+        logger.info(f"新用户注册成功: {username} (IP: {client_ip})")
+
+        return jsonify({
+            "ok": True,
+            "token": token,
+            "user": {
+                "id": user["id"],
+                "username": user["username"],
+                "role": user["role"],
+                "display_name": user["display_name"]
+            },
+            "msg": "注册成功！"
+        }), 201
 
     @app.route("/api/login", methods=["POST"])
     def api_login():
@@ -261,6 +328,28 @@ def create_app():
             return jsonify({"ok": True, "msg": "用户已删除"})
         return jsonify({"ok": False, "error": "删除失败"}), 500
 
+    @app.route("/api/admin/system", methods=["GET"])
+    @require_admin
+    def api_admin_get_system():
+        from config import is_registration_allowed
+        return jsonify({
+            "ok": True,
+            "allow_registration": is_registration_allowed()
+        })
+
+    @app.route("/api/admin/system", methods=["PUT"])
+    @require_admin
+    def api_admin_save_system():
+        from config import set_registration_allowed, is_registration_allowed
+        data = request.get_json() or {}
+        if "allow_registration" in data:
+            set_registration_allowed(bool(data["allow_registration"]))
+        return jsonify({
+            "ok": True,
+            "allow_registration": is_registration_allowed(),
+            "msg": "系统设置已更新"
+        })
+
     # ========== RESTful API（全部需要认证） ==========
 
     @app.route("/api/dashboard")
@@ -268,12 +357,16 @@ def create_app():
     def api_dashboard():
         d = request.args.get("date")
         base = date.fromisoformat(d) if d else date.today()
-        return jsonify(get_dashboard_data(base))
+        user = getattr(g, "current_user", None)
+        uid = user["id"] if user and user.get("role") != "admin" else None
+        return jsonify(get_dashboard_data(base, user_id=uid))
 
     @app.route("/api/today")
     @require_auth
     def api_today():
-        dash = get_dashboard_data()
+        user = getattr(g, "current_user", None)
+        uid = user["id"] if user and user.get("role") != "admin" else None
+        dash = get_dashboard_data(user_id=uid)
         result = {
             "date": dash["date"],
             "lunar": dash["lunar"]["chinese_str"],
@@ -290,7 +383,7 @@ def create_app():
             "upcoming_7d": [
                 {"title": e["title"], "icon": e["icon"], "days_remaining": e.get("days_remaining"),
                  "next_date": e.get("next_date")}
-                for e in get_upcoming_events(7)
+                for e in get_upcoming_events(7, user_id=uid)
             ],
             "accumulate": [
                 {"title": e["title"], "icon": e["icon"], "days_passed": e.get("days_passed")}
@@ -302,7 +395,9 @@ def create_app():
     @app.route("/api/events")
     @require_auth
     def api_list_events():
-        events = list_events(active_only=False)
+        user = getattr(g, "current_user", None)
+        uid = user["id"] if user and user.get("role") != "admin" else None
+        events = list_events(active_only=False, user_id=uid)
         return jsonify([compute_event(ev) for ev in events])
 
     @app.route("/api/events/search")
@@ -311,7 +406,9 @@ def create_app():
         """搜索事件（关键词 + 分类筛选）"""
         q = request.args.get("q", "").strip()
         cat = request.args.get("category", "").strip()
-        events = list_events(active_only=False)
+        user = getattr(g, "current_user", None)
+        uid = user["id"] if user and user.get("role") != "admin" else None
+        events = list_events(active_only=False, user_id=uid)
         result = []
         for ev in events:
             if q and q.lower() not in ev["title"].lower() and q.lower() not in (ev.get("note") or "").lower():
@@ -522,14 +619,31 @@ def create_app():
     @app.route("/api/settings/password", methods=["PUT"])
     @require_auth
     def api_change_password():
+        from models import get_user_by_id, verify_password, update_user
         from config import change_password
         data = request.get_json() or {}
-        old_pass = data.get("old_password", "")
-        new_pass = data.get("new_password", "")
+        old_pass = str(data.get("old_password", ""))
+        new_pass = str(data.get("new_password", ""))
         if not old_pass or not new_pass:
             return jsonify({"ok": False, "error": "旧密码和新密码不能为空"}), 400
         if len(new_pass) < 4:
             return jsonify({"ok": False, "error": "新密码至少4位"}), 400
+
+        user = getattr(g, "current_user", None)
+        if user and user.get("id"):
+            u_db = get_user_by_id(user["id"])
+            if u_db:
+                # 校验当前用户密码
+                from models import get_user_by_username
+                full_u = get_user_by_username(u_db["username"])
+                if full_u and verify_password(old_pass, full_u.get("password_hash", "")):
+                    update_user(user["id"], {"password": new_pass})
+                    # 如果是 admin 用户，同步全局 API_TOKEN
+                    if u_db["username"] == "admin":
+                        change_password(old_pass, new_pass)
+                    return jsonify({"ok": True, "msg": "密码修改成功"})
+
+        # 兼容旧逻辑
         if change_password(old_pass, new_pass):
             return jsonify({"ok": True, "msg": "密码修改成功"})
         return jsonify({"ok": False, "error": "旧密码错误"}), 401

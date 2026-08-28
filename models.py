@@ -330,14 +330,23 @@ def get_event(eid: int) -> dict | None:
     return dict(row) if row else None
 
 
-def list_events(active_only: bool = True) -> list:
-    """获取所有事件列表"""
+def list_events(active_only: bool = True, user_id: int | None = None) -> list:
+    """获取事件列表（支持按用户过滤）"""
     conn = get_db()
-    sql = "SELECT * FROM events"
+    conditions = []
+    params = []
     if active_only:
-        sql += " WHERE is_active = 1"
+        conditions.append("is_active = 1")
+    if user_id is not None:
+        conditions.append("(user_id = ? OR user_id IS NULL)")
+        params.append(user_id)
+
+    sql = "SELECT * FROM events"
+    if conditions:
+        sql += " WHERE " + " AND ".join(conditions)
     sql += " ORDER BY is_pinned DESC, date ASC"
-    rows = conn.execute(sql).fetchall()
+
+    rows = conn.execute(sql, params).fetchall()
     conn.close()
     return [dict(r) for r in rows]
 
@@ -464,11 +473,11 @@ def _next_solar_anniversary(orig: date, base: date) -> date:
     return None
 
 
-def get_today_events(base_date: date = None) -> list:
+def get_today_events(base_date: date = None, user_id: int | None = None) -> list:
     """获取今天到期的事件"""
     if base_date is None:
         base_date = date.today()
-    all_events = list_events()
+    all_events = list_events(user_id=user_id)
     today_list = []
     for ev in all_events:
         ev = compute_event(ev, base_date)
@@ -477,11 +486,11 @@ def get_today_events(base_date: date = None) -> list:
     return today_list
 
 
-def get_upcoming_events(days: int = 7, base_date: date = None) -> list:
+def get_upcoming_events(days: int = 7, base_date: date = None, user_id: int | None = None) -> list:
     """获取未来 N 天内的事件"""
     if base_date is None:
         base_date = date.today()
-    all_events = list_events()
+    all_events = list_events(user_id=user_id)
     upcoming = []
     for ev in all_events:
         ev = compute_event(ev, base_date)
@@ -492,7 +501,7 @@ def get_upcoming_events(days: int = 7, base_date: date = None) -> list:
     return upcoming
 
 
-def get_dashboard_data(base_date: date = None) -> dict:
+def get_dashboard_data(base_date: date = None, user_id: int | None = None) -> dict:
     """获取完整看板数据（前端主页 + API 用）"""
     from lunar_engine import (
         year_progress, month_progress, life_progress,
@@ -501,7 +510,7 @@ def get_dashboard_data(base_date: date = None) -> dict:
     if base_date is None:
         base_date = date.today()
 
-    all_events = list_events()
+    all_events = list_events(user_id=user_id)
     computed = [compute_event(ev, base_date) for ev in all_events]
 
     # 分类

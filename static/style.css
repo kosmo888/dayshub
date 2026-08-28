@@ -556,6 +556,9 @@ form { padding: 16px 20px; }
 }
 .login-btn { width: 100%; padding: 12px; font-size: 15px; border-radius: var(--radius-sm); }
 .login-error { color: var(--danger); font-size: 13px; margin-top: 10px; font-weight: 500; }
+.auth-switch { margin-top: 14px; text-align: center; }
+.auth-switch a { font-size: 13px; color: var(--accent); text-decoration: none; font-weight: 500; transition: color .15s; }
+.auth-switch a:hover { color: var(--accent-hover); text-decoration: underline; }
 
 /* 日历弹窗复制区 */
 .copy-box { display: flex; gap: 8px; margin: 12px 0 6px; }

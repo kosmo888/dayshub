@@ -76,10 +76,97 @@ function checkAuth() {
 function showLogin() {
   document.getElementById('loginPage').style.display = 'flex';
   document.getElementById('app').style.display = 'none';
+  switchAuthMode('login');
+
   const uInput = document.getElementById('loginUsername');
   const pInput = document.getElementById('loginPassword');
   if (uInput) uInput.value = '';
   if (pInput) pInput.value = '';
+
+  // 检查是否开放公开注册
+  fetch('/api/system/public-info').then(r => r.json()).then(res => {
+    const regLink = document.getElementById('registerSwitchLink');
+    if (regLink) {
+      regLink.style.display = res.allow_registration ? 'block' : 'none';
+    }
+  }).catch(() => {});
+}
+
+function switchAuthMode(mode) {
+  const loginForm = document.getElementById('loginForm');
+  const regForm = document.getElementById('registerForm');
+  const title = document.getElementById('authCardTitle');
+  const sub = document.getElementById('authCardSub');
+  const loginErr = document.getElementById('loginError');
+  const regErr = document.getElementById('regError');
+
+  if (loginErr) loginErr.style.display = 'none';
+  if (regErr) regErr.style.display = 'none';
+
+  if (mode === 'register') {
+    if (loginForm) loginForm.style.display = 'none';
+    if (regForm) regForm.style.display = 'block';
+    if (title) title.textContent = '注册账号';
+    if (sub) sub.textContent = '创建您的个人时光看板';
+    const regU = document.getElementById('regUsername');
+    if (regU) regU.focus();
+  } else {
+    if (loginForm) loginForm.style.display = 'block';
+    if (regForm) regForm.style.display = 'none';
+    if (title) title.textContent = 'DaysHub';
+    if (sub) sub.textContent = '农历 · 公历时光纪念看板';
+    const loginU = document.getElementById('loginUsername');
+    if (loginU) loginU.focus();
+  }
+}
+
+async function doRegister(e) {
+  e.preventDefault();
+  const username = (document.getElementById('regUsername')?.value || '').trim();
+  const display_name = (document.getElementById('regDisplayName')?.value || '').trim();
+  const password = (document.getElementById('regPassword')?.value || '').trim();
+  const password2 = (document.getElementById('regPassword2')?.value || '').trim();
+  const errEl = document.getElementById('regError');
+  errEl.style.display = 'none';
+
+  if (!username || !password) {
+    errEl.textContent = '用户名和密码不能为空';
+    errEl.style.display = 'block';
+    return;
+  }
+  if (password.length < 4) {
+    errEl.textContent = '密码长度至少 4 位字符';
+    errEl.style.display = 'block';
+    return;
+  }
+  if (password !== password2) {
+    errEl.textContent = '两次输入的密码不一致';
+    errEl.style.display = 'block';
+    return;
+  }
+
+  try {
+    const resp = await fetch('/api/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, display_name, password }),
+    });
+    const data = await resp.json();
+    if (resp.ok && data.ok) {
+      saveAuth(data.token, data.user);
+      showApp();
+      loadTheme();
+      loadDashboard();
+      setupTabs();
+      showToast(`🎉 欢迎加入 DaysHub，${data.user?.display_name || data.user?.username}！`);
+    } else {
+      errEl.textContent = data.error || '注册失败，请稍后重试';
+      errEl.style.display = 'block';
+    }
+  } catch (err) {
+    errEl.textContent = '网络请求失败';
+    errEl.style.display = 'block';
+  }
 }
 
 function showApp() {
@@ -705,6 +792,16 @@ function switchSettingsTab(tabName) {
 async function loadUserList() {
   const container = document.getElementById('userListContainer');
   if (!container) return;
+
+  // 1. 加载注册策略
+  apiFetch('/api/admin/system').then(r => r.json()).then(res => {
+    if (res.ok && res.allow_registration !== undefined) {
+      const regBox = document.getElementById('allowRegistration');
+      if (regBox) regBox.checked = res.allow_registration;
+    }
+  }).catch(() => {});
+
+  // 2. 加载用户列表
   try {
     const resp = await apiFetch('/api/admin/users');
     const data = await resp.json();
@@ -756,6 +853,25 @@ async function loadUserList() {
     }
   } catch (err) {
     container.innerHTML = '<p class="modal-desc" style="color:var(--danger)">加载用户列表网络错误</p>';
+  }
+}
+
+async function toggleRegistrationSetting() {
+  const allowed = document.getElementById('allowRegistration').checked;
+  try {
+    const resp = await apiFetch('/api/admin/system', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ allow_registration: allowed }),
+    });
+    const res = await resp.json();
+    if (resp.ok && res.ok) {
+      showToast(allowed ? '✅ 已开放访客自主注册' : '🔒 已关闭访客自主注册');
+    } else {
+      showToast(res.error || '设置失败', 'error');
+    }
+  } catch (err) {
+    showToast('更新注册策略失败', 'error');
   }
 }
 

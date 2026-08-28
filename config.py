@@ -6,7 +6,7 @@ import secrets
 import hmac
 import time
 
-VERSION = "1.3.0"
+VERSION = "1.5.0"
 
 class Config:
     # ========== 基础 ==========
@@ -94,6 +94,23 @@ class Config:
     def is_production(cls):
         """检查是否生产环境（SECRET_KEY 非默认值且 API_TOKEN 已设置）"""
         return cls.SECRET_KEY != "dayshub-dev-key-change-me"
+
+
+# ========== 系统公开设置（注册等） ==========
+
+def is_registration_allowed() -> bool:
+    """检查是否允许公开注册新账号（默认开放）"""
+    try:
+        from models import get_setting
+        val = get_setting("allow_registration", "true")
+        return str(val).lower() == "true"
+    except Exception:
+        return True
+
+def set_registration_allowed(allowed: bool):
+    """设置是否允许公开注册"""
+    from models import set_setting
+    set_setting("allow_registration", "true" if allowed else "false")
 
 
 # ========== 自动备份与维护配置 ==========

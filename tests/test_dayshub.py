@@ -173,6 +173,15 @@ def test_multi_user_lifecycle():
     assert get_user_by_id(u["id"]) is None
 
 
+def test_registration_toggle_and_logic():
+    from config import is_registration_allowed, set_registration_allowed
+    # 测试开关
+    set_registration_allowed(False)
+    assert is_registration_allowed() is False
+    set_registration_allowed(True)
+    assert is_registration_allowed() is True
+
+
 if __name__ == "__main__":
     test_lunar_conversion()
     test_lunar_small_month_tolerance()
@@ -183,4 +192,5 @@ if __name__ == "__main__":
     test_ical_token_lifecycle()
     test_backup_config_and_logic()
     test_multi_user_lifecycle()
+    test_registration_toggle_and_logic()
     print("✅ 全部 pytest 测试用例本地执行通过！")
