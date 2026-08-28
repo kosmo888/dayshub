@@ -1,12 +1,45 @@
-/* DaysHub 时光看板 — 前端逻辑 v1.2.0 */
+/* DaysHub 时光看板 — 前端逻辑 v1.3.0 */
 let dashboardData = null;
 let currentTab = 'all';
 let searchResults = null;
 
-// ========== 密码认证（一年有效期） ==========
+// ========== 轻量 Toast 提示组件 ==========
+function showToast(msg, type = 'info') {
+  const toast = document.getElementById('toast');
+  if (!toast) return;
+  toast.textContent = msg;
+  toast.className = `toast ${type === 'error' ? 'toast-error' : ''} show`;
+  clearTimeout(toast._timer);
+  toast._timer = setTimeout(() => {
+    toast.className = 'toast';
+  }, 2300);
+}
+
+// ========== 密码与多用户认证（一年有效期） ==========
 const TOKEN_KEY = 'dayshub_token';
 const TOKEN_EXPIRY_KEY = 'dayshub_token_expiry';
+const USER_INFO_KEY = 'dayshub_user_info';
 const ONE_YEAR_MS = 365 * 24 * 60 * 60 * 1000;
+
+let currentUser = null;
+
+function getCurrentUser() {
+  if (currentUser) return currentUser;
+  try {
+    const raw = localStorage.getItem(USER_INFO_KEY);
+    if (raw) currentUser = JSON.parse(raw);
+  } catch (e) {}
+  return currentUser;
+}
+
+function saveCurrentUser(user) {
+  currentUser = user;
+  if (user) {
+    localStorage.setItem(USER_INFO_KEY, JSON.stringify(user));
+  } else {
+    localStorage.removeItem(USER_INFO_KEY);
+  }
+}
 
 function getToken() {
   const token = localStorage.getItem(TOKEN_KEY);
@@ -15,14 +48,17 @@ function getToken() {
   if (Date.now() > expiry) {
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(TOKEN_EXPIRY_KEY);
+    localStorage.removeItem(USER_INFO_KEY);
+    currentUser = null;
     return null;
   }
   return token;
 }
 
-function saveAuth(token) {
+function saveAuth(token, user = null) {
   localStorage.setItem(TOKEN_KEY, token);
   localStorage.setItem(TOKEN_EXPIRY_KEY, String(Date.now() + ONE_YEAR_MS));
+  if (user) saveCurrentUser(user);
 }
 
 function authHeaders(extra = {}) {
@@ -40,45 +76,62 @@ function checkAuth() {
 function showLogin() {
   document.getElementById('loginPage').style.display = 'flex';
   document.getElementById('app').style.display = 'none';
-  const input = document.getElementById('loginPassword');
-  if (input) input.value = '';
+  const uInput = document.getElementById('loginUsername');
+  const pInput = document.getElementById('loginPassword');
+  if (uInput) uInput.value = '';
+  if (pInput) pInput.value = '';
 }
 
 function showApp() {
   document.getElementById('loginPage').style.display = 'none';
   document.getElementById('app').style.display = 'block';
+  _updateUserUI();
+}
+
+function _updateUserUI() {
+  const user = getCurrentUser();
+  const isAdmin = user && user.role === 'admin';
+  const userBtn = document.getElementById('subtabBtnUsers');
+  if (userBtn) {
+    userBtn.style.display = isAdmin ? 'inline-flex' : 'none';
+  }
 }
 
 async function doLogin(e) {
   e.preventDefault();
+  const username = (document.getElementById('loginUsername')?.value || '').trim();
   const password = document.getElementById('loginPassword').value.trim();
   const errEl = document.getElementById('loginError');
   errEl.style.display = 'none';
   try {
     const resp = await fetch('/api/login', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ password }),
+      body: JSON.stringify({ username, password }),
     });
-    if (resp.ok) {
-      const data = await resp.json();
-      if (data.ok) {
-        saveAuth(data.token || password);
-        showApp();
-        loadTheme();
-        loadDashboard();
-        setupTabs();
-      } else { errEl.style.display = 'block'; }
-    } else { errEl.style.display = 'block'; }
+    const data = await resp.json();
+    if (resp.ok && data.ok) {
+      saveAuth(data.token || password, data.user);
+      showApp();
+      loadTheme();
+      loadDashboard();
+      setupTabs();
+      showToast(`👋 欢迎回来，${data.user?.display_name || data.user?.username || '用户'}`);
+    } else {
+      errEl.textContent = data.error || '用户名或密码错误';
+      errEl.style.display = 'block';
+    }
   } catch (err) {
-    errEl.textContent = '网络错误';
+    errEl.textContent = '网络请求失败';
     errEl.style.display = 'block';
   }
 }
 
 function doLogout() {
-  showConfirm('确认退出登录？', () => {
+  showConfirm('确认退出当前登录？', () => {
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(TOKEN_EXPIRY_KEY);
+    localStorage.removeItem(USER_INFO_KEY);
+    currentUser = null;
     showLogin();
   });
 }
@@ -123,8 +176,14 @@ async function loadDashboard() {
   } catch (e) { console.error('加载失败:', e); }
 }
 
-// ========== 搜索 ==========
-async function doSearch() {
+// ========== 搜索（带 250ms 防抖） ==========
+let _searchTimer = null;
+function doSearch() {
+  clearTimeout(_searchTimer);
+  _searchTimer = setTimeout(_executeSearch, 250);
+}
+
+async function _executeSearch() {
   const q = document.getElementById('searchInput').value.trim();
   const cat = document.getElementById('searchCategory').value;
   if (!q && !cat) { searchResults = null; renderTabs(); return; }
@@ -498,38 +557,93 @@ async function saveEvent(e) {
       const result = await resp.json();
       if (result.date) data.date = result.date;
     } catch (err) {}
+  } else {
+    // 显式置空农历字段，防止修改事件类型时旧农历数据残留
+    data.lunar_month = null;
+    data.lunar_day = null;
+    data.is_leap = 0;
+    data.is_recurring = (data.event_type === 'recurring') ? 1 : 0;
   }
   const url = id ? `/api/events/${id}` : '/api/events';
   const method = id ? 'PUT' : 'POST';
   const resp = await apiFetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
-  if (resp.ok) { closeModal(); await loadDashboard(); }
+  if (resp.ok) {
+    closeModal();
+    showToast(id ? '✅ 事件已更新' : '✅ 事件创建成功');
+    await loadDashboard();
+  }
   else if (resp.status === 401) { showLogin(); }
-  else { showConfirm('保存失败，请重试', () => {}); }
+  else { showToast('保存失败，请检查输入', 'error'); }
 }
 
 async function deleteCurrentEvent() {
   const id = document.getElementById('evId').value;
   if (!id) return;
-  showConfirm('确认删除这个事件？', async () => {
+  showConfirm('确认删除这个事件？\n删除后历史记录将保留，但事件不再显示。', async () => {
     const resp = await apiFetch(`/api/events/${id}`, { method: 'DELETE' });
-    if (resp.ok) { closeModal(); await loadDashboard(); }
+    if (resp.ok) {
+      closeModal();
+      showToast('🗑️ 事件已删除');
+      await loadDashboard();
+    }
     else if (resp.status === 401) { showLogin(); }
   });
 }
 
 // ========== 日历订阅 ==========
-function showCalendarModal() {
-  const token = getToken() || '';
-  const url = location.origin + '/api/calendar.ics?token=' + encodeURIComponent(token);
-  document.getElementById('calUrl').value = url;
-  document.getElementById('calModal').style.display = 'flex';
+async function showCalendarModal() {
+  try {
+    const resp = await apiFetch('/api/settings/ical_token');
+    const data = await resp.json();
+    const token = data.token || '';
+    const url = location.origin + '/api/calendar.ics?token=' + encodeURIComponent(token);
+    document.getElementById('calUrl').value = url;
+    document.getElementById('calModal').style.display = 'flex';
+  } catch (err) {
+    // 降级使用当前存储的 token
+    const token = getToken() || '';
+    const url = location.origin + '/api/calendar.ics?token=' + encodeURIComponent(token);
+    document.getElementById('calUrl').value = url;
+    document.getElementById('calModal').style.display = 'flex';
+  }
+}
+
+async function resetCalToken() {
+  showConfirm('确定要重置日历订阅 Token 吗？原订阅链接将立即失效，需要在日历 App 中更新。', async () => {
+    try {
+      const resp = await apiFetch('/api/settings/ical_token/reset', { method: 'POST' });
+      const data = await resp.json();
+      if (data.ok) {
+        const url = location.origin + '/api/calendar.ics?token=' + encodeURIComponent(data.token);
+        document.getElementById('calUrl').value = url;
+        showConfirm('✅ 订阅 Token 已重置并更新', () => {});
+      }
+    } catch (err) {
+      showConfirm('重置失败', () => {});
+    }
+  });
 }
 
 function copyCalUrl() {
   const input = document.getElementById('calUrl');
   input.select(); input.setSelectionRange(0, 99999);
   if (navigator.clipboard) { navigator.clipboard.writeText(input.value); }
-  showConfirm('已复制到剪贴板', () => {});
+  showToast('✅ 订阅链接已复制到剪贴板');
+}
+
+async function manualBackup() {
+  try {
+    showToast('正在创建全量备份...');
+    const resp = await apiFetch('/api/backup', { method: 'POST' });
+    const data = await resp.json();
+    if (resp.ok && data.ok) {
+      showToast('✅ 数据库与 JSON 快照已备份成功');
+    } else {
+      showToast(data.msg || '备份失败', 'error');
+    }
+  } catch (err) {
+    showToast('备份请求失败', 'error');
+  }
 }
 
 // ========== 导入导出 ==========
@@ -546,24 +660,196 @@ function exportData() {
 function importData(e) {
   const file = e.target.files[0];
   if (!file) return;
-  const reader = new FileReader();
-  reader.onload = async (ev) => {
-    const data = JSON.parse(ev.target.result);
-    const resp = await apiFetch('/api/import?replace=true', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data),
-    });
-    if (resp.ok) {
-      const result = await resp.json();
-      showConfirm(`导入完成: ${result.imported} 条`, () => {});
-      await loadDashboard();
-    } else if (resp.status === 401) { showLogin(); }
-  };
-  reader.readAsText(file);
+  showConfirm('⚠️ 导入将覆盖现有的全部事件数据，是否确认继续导入？', () => {
+    const reader = new FileReader();
+    reader.onload = async (ev) => {
+      try {
+        const data = JSON.parse(ev.target.result);
+        const resp = await apiFetch('/api/import?replace=true', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data),
+        });
+        if (resp.ok) {
+          const result = await resp.json();
+          showConfirm(`✅ 导入完成: ${result.imported} 条`, () => {});
+          await loadDashboard();
+        } else if (resp.status === 401) { showLogin(); }
+        else { showConfirm('导入失败，请检查文件格式', () => {}); }
+      } catch (err) {
+        showConfirm('文件解析失败，请确保是有效的 JSON', () => {});
+      }
+    };
+    reader.readAsText(file);
+  });
+  // 重置 input 以允许再次选择相同文件
+  e.target.value = '';
 }
 
-// ========== 设置页面 ==========
+// ========== 设置页面 (多页面选项卡切换) ==========
+function switchSettingsTab(tabName) {
+  document.querySelectorAll('.settings-nav-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.subtab === tabName);
+  });
+  document.querySelectorAll('.settings-page').forEach(page => {
+    page.classList.toggle('active', page.id === `subtab-${tabName}`);
+  });
+  const msgEl = document.getElementById('settingsMsg');
+  if (msgEl) msgEl.style.display = 'none';
+
+  if (tabName === 'users') {
+    loadUserList();
+  }
+}
+
+// ========== 用户管理 (管理员) ==========
+async function loadUserList() {
+  const container = document.getElementById('userListContainer');
+  if (!container) return;
+  try {
+    const resp = await apiFetch('/api/admin/users');
+    const data = await resp.json();
+    if (resp.ok && data.ok) {
+      const users = data.users || [];
+      if (!users.length) {
+        container.innerHTML = '<p class="modal-desc">暂无用户记录</p>';
+        return;
+      }
+      let html = `
+        <table class="user-table">
+          <thead>
+            <tr>
+              <th>用户名</th>
+              <th>昵称</th>
+              <th>角色</th>
+              <th>状态</th>
+              <th style="text-align:right;">操作</th>
+            </tr>
+          </thead>
+          <tbody>
+      `;
+      for (const u of users) {
+        const isAdmin = u.role === 'admin';
+        const roleBadge = isAdmin ? '<span class="user-badge badge-admin">管理员</span>' : '<span class="user-badge badge-user">普通用户</span>';
+        const statusBadge = u.is_active ?
+          '<span class="status-dot status-active"></span>正常' :
+          '<span class="status-dot status-inactive"></span>停用';
+        const isSelf = currentUser && currentUser.id === u.id;
+        const deleteBtn = (u.username === 'admin' || isSelf) ? '' : `<button class="user-action-btn btn-danger-text" onclick="deleteUserRow(${u.id}, '${u.username}')">删除</button>`;
+
+        html += `
+          <tr>
+            <td><b>${u.username}</b></td>
+            <td>${u.display_name || '-'}</td>
+            <td>${roleBadge}</td>
+            <td>${statusBadge}</td>
+            <td style="text-align:right;">
+              <button class="user-action-btn" onclick="openEditUserModal(${u.id})">编辑</button>
+              ${deleteBtn}
+            </td>
+          </tr>
+        `;
+      }
+      html += '</tbody></table>';
+      container.innerHTML = html;
+    } else {
+      container.innerHTML = `<p class="modal-desc" style="color:var(--danger)">${data.error || '加载失败'}</p>`;
+    }
+  } catch (err) {
+    container.innerHTML = '<p class="modal-desc" style="color:var(--danger)">加载用户列表网络错误</p>';
+  }
+}
+
+let _editingUserId = null;
+function openAddUserModal() {
+  _editingUserId = null;
+  document.getElementById('userModalTitle').textContent = '新增系统用户';
+  document.getElementById('manageUserId').value = '';
+  document.getElementById('manageUsername').value = '';
+  document.getElementById('manageUsername').disabled = false;
+  document.getElementById('manageDisplayName').value = '';
+  document.getElementById('manageRole').value = 'user';
+  document.getElementById('managePassword').value = '';
+  document.getElementById('managePassword').required = true;
+  document.getElementById('managePasswordLabel').textContent = '登录密码 *';
+  document.getElementById('userModal').style.display = 'flex';
+}
+
+async function openEditUserModal(uid) {
+  _editingUserId = uid;
+  try {
+    const resp = await apiFetch('/api/admin/users');
+    const data = await resp.json();
+    const user = (data.users || []).find(u => u.id === uid);
+    if (!user) return;
+    document.getElementById('userModalTitle').textContent = `编辑用户: ${user.username}`;
+    document.getElementById('manageUserId').value = user.id;
+    document.getElementById('manageUsername').value = user.username;
+    document.getElementById('manageUsername').disabled = (user.username === 'admin');
+    document.getElementById('manageDisplayName').value = user.display_name || '';
+    document.getElementById('manageRole').value = user.role;
+    document.getElementById('managePassword').value = '';
+    document.getElementById('managePassword').required = false;
+    document.getElementById('managePasswordLabel').textContent = '重置密码 (留空不修改)';
+    document.getElementById('userModal').style.display = 'flex';
+  } catch (err) {
+    showToast('获取用户信息失败', 'error');
+  }
+}
+
+async function saveUser(e) {
+  e.preventDefault();
+  const uid = document.getElementById('manageUserId').value;
+  const username = document.getElementById('manageUsername').value.trim();
+  const display_name = document.getElementById('manageDisplayName').value.trim();
+  const role = document.getElementById('manageRole').value;
+  const password = document.getElementById('managePassword').value;
+
+  const data = { display_name, role };
+  if (password) data.password = password;
+  if (!uid) data.username = username;
+
+  const url = uid ? `/api/admin/users/${uid}` : '/api/admin/users';
+  const method = uid ? 'PUT' : 'POST';
+
+  try {
+    const resp = await apiFetch(url, {
+      method,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    const res = await resp.json();
+    if (resp.ok && res.ok) {
+      document.getElementById('userModal').style.display = 'none';
+      showToast(uid ? '✅ 用户信息已更新' : '✅ 新用户创建成功');
+      loadUserList();
+    } else {
+      showToast(res.error || '保存失败', 'error');
+    }
+  } catch (err) {
+    showToast('保存用户请求错误', 'error');
+  }
+}
+
+function deleteUserRow(uid, username) {
+  showConfirm(`确认彻底删除用户「${username}」？\n其关联的数据也将被清理。`, async () => {
+    try {
+      const resp = await apiFetch(`/api/admin/users/${uid}`, { method: 'DELETE' });
+      const res = await resp.json();
+      if (resp.ok && res.ok) {
+        showToast(`✅ 用户 ${username} 已删除`);
+        loadUserList();
+      } else {
+        showToast(res.error || '删除失败', 'error');
+      }
+    } catch (err) {
+      showToast('删除请求失败', 'error');
+    }
+  });
+}
+
 function showSettings() {
+  switchSettingsTab('push'); // 默认显示第一个选项卡
+
   // 加载推送设置
   apiFetch('/api/settings/push').then(r => r.json()).then(cfg => {
     document.getElementById('pushWecom').value = cfg.wecom_webhook || '';
@@ -577,12 +863,46 @@ function showSettings() {
     document.getElementById('pushTgToken').value = cfg.tg_bot_token || '';
     document.getElementById('pushTgChatId').value = cfg.tg_chat_id || '';
   }).catch(() => {});
+
+  // 加载备份配置
+  apiFetch('/api/settings/backup').then(r => r.json()).then(res => {
+    if (res.ok && res.config) {
+      document.getElementById('backupEnabled').checked = !!res.config.backup_enabled;
+      document.getElementById('backupTime').value = res.config.backup_time || '03:00';
+      document.getElementById('backupCount').value = res.config.backup_count || 30;
+    }
+  }).catch(() => {});
+
   // 清空密码修改
   document.getElementById('oldPassword').value = '';
   document.getElementById('newPassword').value = '';
   document.getElementById('newPassword2').value = '';
   document.getElementById('settingsMsg').style.display = 'none';
   document.getElementById('settingsModal').style.display = 'flex';
+}
+
+async function saveBackupSettings() {
+  const data = {
+    backup_enabled: document.getElementById('backupEnabled').checked,
+    backup_time: document.getElementById('backupTime').value.trim(),
+    backup_count: parseInt(document.getElementById('backupCount').value) || 30,
+  };
+  try {
+    const resp = await apiFetch('/api/settings/backup', {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    if (resp.ok) {
+      showToast('✅ 自动备份策略已保存');
+      showSettingsMsg('✅ 自动备份策略已保存', false);
+    } else if (resp.status === 401) {
+      showLogin();
+    } else {
+      showSettingsMsg('保存备份设置失败', true);
+    }
+  } catch (err) {
+    showSettingsMsg('网络错误', true);
+  }
 }
 
 function showSettingsMsg(msg, isError) {
@@ -660,20 +980,31 @@ async function testNotify() {
   });
 }
 
-// ========== 暗色模式 ==========
+// ========== 主题模式切换 (SVG 响应) ==========
+const MOON_SVG = `<svg class="tool-btn-icon" viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>`;
+const SUN_SVG = `<svg class="tool-btn-icon" viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>`;
+
+function _applyThemeUI(isDark) {
+  const container = document.getElementById('themeIconContainer');
+  const text = document.getElementById('themeText');
+  if (container) container.innerHTML = isDark ? SUN_SVG : MOON_SVG;
+  if (text) text.textContent = isDark ? '亮色' : '暗色';
+}
+
 function toggleTheme() {
   const current = document.documentElement.getAttribute('data-theme');
   const next = current === 'dark' ? '' : 'dark';
   if (next) { document.documentElement.setAttribute('data-theme', 'dark'); }
   else { document.documentElement.removeAttribute('data-theme'); }
   localStorage.setItem('dayshub-theme', next);
-  document.querySelector('.theme-btn').textContent = next ? '☀️ 亮色' : '🌙 暗色';
+  _applyThemeUI(next === 'dark');
 }
 
 function loadTheme() {
   const saved = localStorage.getItem('dayshub-theme');
-  if (saved === 'dark') {
+  const isDark = (saved === 'dark');
+  if (isDark) {
     document.documentElement.setAttribute('data-theme', 'dark');
-    document.querySelector('.theme-btn').textContent = '☀️ 亮色';
   }
+  _applyThemeUI(isDark);
 }

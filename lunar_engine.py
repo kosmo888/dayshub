@@ -97,9 +97,18 @@ LEGAL_HOLIDAYS = [
 
 
 def lunar_to_solar(year: int, lunar_month: int, lunar_day: int, is_leap: bool = False) -> date:
-    """农历转公历"""
-    zh = ZhDate(year, lunar_month, lunar_day, leap_month=is_leap)
-    return zh.to_datetime().date()
+    """农历转公历（遇到小月无30日时，自动容错降级至29日）"""
+    try:
+        zh = ZhDate(year, lunar_month, lunar_day, leap_month=is_leap)
+        return zh.to_datetime().date()
+    except Exception as e:
+        if lunar_day == 30:
+            try:
+                zh = ZhDate(year, lunar_month, 29, leap_month=is_leap)
+                return zh.to_datetime().date()
+            except Exception:
+                pass
+        raise e
 
 
 def solar_to_lunar(d: date) -> dict:

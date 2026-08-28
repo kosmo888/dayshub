@@ -2,19 +2,40 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>DaysHub · 时光看板</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23667eea'><rect x='3' y='4' width='18' height='18' rx='4' fill='%23667eea'/><circle cx='8' cy='2' r='1.5' fill='%23fff'/><circle cx='16' cy='2' r='1.5' fill='%23fff'/><rect x='6' y='10' width='12' height='8' rx='2' fill='%23fff'/></svg>">
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#667eea">
 <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
+
+<!-- 全局轻量 Toast 提示 -->
+<div id="toast" class="toast"></div>
+
 <!-- 登录页 -->
 <div id="loginPage" style="display:none">
   <div class="login-card">
-    <h1>📅 DaysHub</h1>
-    <p class="login-sub">时光看板</p>
-    <form onsubmit="doLogin(event)">
-      <input type="password" id="loginPassword" placeholder="输入密码" autofocus class="login-input">
-      <button type="submit" class="btn btn-primary login-btn">进入</button>
+    <div class="login-icon">
+      <svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="#667eea" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="4" width="18" height="18" rx="3" ry="3"></rect>
+        <line x1="16" y1="2" x2="16" y2="6"></line>
+        <line x1="8" y1="2" x2="8" y2="6"></line>
+        <line x1="3" y1="10" x2="21" y2="10"></line>
+        <circle cx="12" cy="15" r="2"></circle>
+      </svg>
+    </div>
+    <h1>DaysHub</h1>
+    <p class="login-sub">农历 · 公历时光纪念看板</p>
+    <form onsubmit="doLogin(event)" class="login-form">
+      <div class="form-group" style="margin-bottom:10px;">
+        <input type="text" id="loginUsername" placeholder="用户名 (默认 admin)" autofocus class="login-input" style="text-align:left; padding-left:14px;">
+      </div>
+      <div class="form-group" style="margin-bottom:14px;">
+        <input type="password" id="loginPassword" placeholder="访问密码" class="login-input" style="text-align:left; padding-left:14px;">
+      </div>
+      <button type="submit" class="btn btn-primary login-btn">登录进入</button>
       <p id="loginError" class="login-error" style="display:none;">密码错误</p>
     </form>
   </div>
@@ -26,7 +47,7 @@
   <header class="header" id="header">
     <div class="header-bg"></div>
     <div class="header-content">
-      <h1>📅 DaysHub <span class="subtitle">时光看板</span></h1>
+      <h1>DaysHub <span class="subtitle">时光看板</span></h1>
       <div class="date-info" id="dateInfo">加载中...</div>
       <div class="progress-bars" id="progressBars"></div>
     </div>
@@ -34,13 +55,19 @@
 
   <!-- 今日纪念 -->
   <section class="section today-section" id="todaySection" style="display:none">
-    <h2 class="section-title">🎯 今日纪念</h2>
+    <h2 class="section-title">
+      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="6"></circle><circle cx="12" cy="12" r="2"></circle></svg>
+      今日纪念
+    </h2>
     <div id="todayEvents"></div>
   </section>
 
   <!-- 搜索栏 -->
   <div class="search-bar" id="searchBar">
-    <input type="text" id="searchInput" placeholder="🔍 搜索事件..." oninput="doSearch()" class="search-input">
+    <div class="search-input-wrapper">
+      <svg class="search-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+      <input type="text" id="searchInput" placeholder="搜索事件名称、备注..." oninput="doSearch()" class="search-input">
+    </div>
     <select id="searchCategory" onchange="doSearch()" class="search-select">
       <option value="">全部分类</option>
       <option value="family">🏠 家庭</option>
@@ -55,11 +82,26 @@
 
   <!-- 标签切换 -->
   <nav class="tabs" id="tabs">
-    <button class="tab active" data-tab="all">📋 全部</button>
-    <button class="tab" data-tab="countdown">⏳ 倒数日</button>
-    <button class="tab" data-tab="recurring">🔄 循环日</button>
-    <button class="tab" data-tab="accumulate">📈 累计日</button>
-    <button class="tab" data-tab="stats">📊 统计</button>
+    <button class="tab active" data-tab="all">
+      <svg class="tab-icon" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
+      全部
+    </button>
+    <button class="tab" data-tab="countdown">
+      <svg class="tab-icon" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+      倒数日
+    </button>
+    <button class="tab" data-tab="recurring">
+      <svg class="tab-icon" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"></polyline><path d="M3 11V9a4 4 0 0 1 4-4h14"></path><polyline points="7 23 3 19 7 15"></polyline><path d="M21 13v2a4 4 0 0 1-4 4H3"></path></svg>
+      循环日
+    </button>
+    <button class="tab" data-tab="accumulate">
+      <svg class="tab-icon" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline><polyline points="17 6 23 6 23 12"></polyline></svg>
+      累计日
+    </button>
+    <button class="tab" data-tab="stats">
+      <svg class="tab-icon" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>
+      统计
+    </button>
   </nav>
 
   <!-- 主内容区 -->
@@ -80,7 +122,12 @@
   </main>
 
   <!-- 浮动添加按钮 -->
-  <button class="fab" id="fabBtn" onclick="openAddModal()">＋</button>
+  <button class="fab" id="fabBtn" onclick="openAddModal()" title="添加新事件">
+    <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+      <line x1="12" y1="5" x2="12" y2="19"></line>
+      <line x1="5" y1="12" x2="19" y2="12"></line>
+    </svg>
+  </button>
 
   <!-- 添加/编辑弹窗 -->
   <div class="modal-overlay" id="modalOverlay" style="display:none">
@@ -93,7 +140,7 @@
         <input type="hidden" id="evId">
         <div class="form-group">
           <label>标题 *</label>
-          <input type="text" id="evTitle" class="form-input" required placeholder="事件名称">
+          <input type="text" id="evTitle" class="form-input" required placeholder="例如：母亲生日、结婚纪念日">
         </div>
         <div class="form-row">
           <div class="form-group">
@@ -122,7 +169,9 @@
           <input type="date" id="evDate" class="form-input" required onchange="onSolarDateChange()">
         </div>
         <div class="form-group" id="lunarGroup">
-          <label><input type="checkbox" id="evIsLunar" onchange="toggleLunar()"> 使用农历（每年按农历重复）</label>
+          <label class="checkbox-label">
+            <input type="checkbox" id="evIsLunar" onchange="toggleLunar()"> 使用农历（每年按农历循环）
+          </label>
           <div id="lunarInputs" style="display:none; margin-top:8px;">
             <div class="form-row">
               <div class="form-group" style="flex:1">
@@ -141,7 +190,7 @@
                 <select id="evLunarDay" class="form-select" onchange="onLunarChange()">
                   <option value="1">初一</option><option value="2">初二</option>
                   <option value="3">初三</option><option value="4">初四</option>
-                  <option value="5">初五</option><option value="6">初六</option>
+                  <option value="5">五月</option><option value="6">初六</option>
                   <option value="7">初七</option><option value="8">初八</option>
                   <option value="9">初九</option><option value="10">初十</option>
                   <option value="11">十一</option><option value="12">十二</option>
@@ -161,14 +210,16 @@
         </div>
         <div class="form-group">
           <label>提前提醒天数</label>
-          <input type="number" id="evAdvanceDays" class="form-input" value="3" min="0" max="365" placeholder="默认3天前提醒，0=当天提醒">
+          <input type="number" id="evAdvanceDays" class="form-input" value="3" min="0" max="365" placeholder="默认 3 天前通知，0=当天通知">
         </div>
         <div class="form-group">
           <label>备注/备忘</label>
           <textarea id="evNote" class="form-input" rows="2" placeholder="比如：提前订蛋糕、买什么礼物..."></textarea>
         </div>
         <div class="form-group">
-          <label><input type="checkbox" id="evPinned"> 置顶显示</label>
+          <label class="checkbox-label">
+            <input type="checkbox" id="evPinned"> 置顶显示在列表顶部
+          </label>
         </div>
         <div class="form-actions">
           <button type="button" class="btn btn-delete" id="btnDelete" style="display:none" onclick="deleteCurrentEvent()">删除</button>
@@ -186,69 +237,158 @@
         <button class="modal-close" onclick="document.getElementById('calModal').style.display='none'">✕</button>
       </div>
       <div class="modal-body">
-        <p>将以下链接添加到 Google Calendar / Apple Calendar 即可同步所有事件：</p>
+        <p class="modal-desc">将以下链接添加到 Google Calendar / Apple Calendar 即可自动同步所有纪念日（独立只读链接，修改管理密码不影响订阅）：</p>
         <div class="copy-box">
           <input type="text" id="calUrl" class="form-input" readonly>
-          <button onclick="copyCalUrl()">复制</button>
+          <button class="btn btn-primary" onclick="copyCalUrl()">复制</button>
+        </div>
+        <div class="cal-actions">
+          <button class="btn btn-secondary btn-sm" onclick="resetCalToken()">🔄 重置订阅 Token</button>
         </div>
         <div class="cal-tips">
-          <p><b>Google Calendar：</b>左侧菜单 → 其他日历 → 按 URL 添加 → 粘贴链接</p>
+          <p><b>Google Calendar：</b>左侧菜单 → 其他日历 + → 按网址添加 → 粘贴链接</p>
+          <p><b>Apple 日历：</b>文件 → 新建日历订阅 → 粘贴链接</p>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- 设置页面 -->
+  <!-- 设置页面 (多选项卡分页结构) -->
   <div class="modal-overlay" id="settingsModal" style="display:none">
-    <div class="modal">
+    <div class="modal modal-settings">
       <div class="modal-header">
-        <h3>⚙️ 设置</h3>
+        <h3>⚙️ 系统设置</h3>
         <button class="modal-close" onclick="document.getElementById('settingsModal').style.display='none'">✕</button>
       </div>
-      <div class="modal-body" style="max-height:65vh;overflow-y:auto;">
 
-        <!-- 推送设置 -->
-        <h4 style="margin:4px 0 10px;color:var(--accent)">🔔 推送设置</h4>
+      <!-- 设置页内部导航分页 Tabs -->
+      <div class="settings-nav">
+        <button class="settings-nav-btn active" data-subtab="push" onclick="switchSettingsTab('push')">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
+          推送通知
+        </button>
+        <button class="settings-nav-btn" data-subtab="backup" onclick="switchSettingsTab('backup')">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
+          数据与备份
+        </button>
+        <button class="settings-nav-btn" data-subtab="password" onclick="switchSettingsTab('password')">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+          安全密码
+        </button>
+        <button class="settings-nav-btn admin-only" id="subtabBtnUsers" data-subtab="users" onclick="switchSettingsTab('users')" style="display:none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+          用户管理
+        </button>
+      </div>
 
-        <h5 style="margin:10px 0 6px;color:var(--text-secondary)">企业微信</h5>
-        <div class="form-group"><label>Webhook URL</label><input type="text" id="pushWecom" class="form-input" placeholder="https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=..."></div>
+      <div class="modal-body settings-scroll">
+        <!-- 页面 1: 推送设置 -->
+        <div id="subtab-push" class="settings-page active">
+          <div class="channel-group">
+            <h5 class="channel-title">企业微信 Webhook</h5>
+            <div class="form-group">
+              <input type="text" id="pushWecom" class="form-input" placeholder="https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=...">
+            </div>
+          </div>
 
-        <h5 style="margin:14px 0 6px;color:var(--text-secondary)">邮件 SMTP</h5>
-        <div class="form-row">
-          <div class="form-group" style="flex:2"><label>SMTP 主机</label><input type="text" id="pushSmtpHost" class="form-input" placeholder="smtp.exmail.qq.com"></div>
-          <div class="form-group" style="flex:1"><label>端口</label><input type="text" id="pushSmtpPort" class="form-input" placeholder="465"></div>
+          <div class="channel-group">
+            <h5 class="channel-title">邮件 SMTP 推送</h5>
+            <div class="form-row">
+              <div class="form-group" style="flex:2"><label>SMTP 主机</label><input type="text" id="pushSmtpHost" class="form-input" placeholder="smtp.exmail.qq.com"></div>
+              <div class="form-group" style="flex:1"><label>端口</label><input type="text" id="pushSmtpPort" class="form-input" placeholder="465"></div>
+            </div>
+            <div class="form-row">
+              <div class="form-group" style="flex:1"><label>发件账号</label><input type="text" id="pushSmtpUser" class="form-input" placeholder="发件邮箱地址"></div>
+              <div class="form-group" style="flex:1"><label>授权码/密码</label><input type="password" id="pushSmtpPass" class="form-input" placeholder="留空不修改"></div>
+            </div>
+            <div class="form-row">
+              <div class="form-group" style="flex:1"><label>发件人</label><input type="text" id="pushSmtpFrom" class="form-input" placeholder="同账号即可"></div>
+              <div class="form-group" style="flex:1"><label>收件人</label><input type="text" id="pushSmtpTo" class="form-input" placeholder="多个逗号分隔"></div>
+            </div>
+            <div class="form-group">
+              <label class="checkbox-label"><input type="checkbox" id="pushSmtpSsl" checked> 启用 SSL 安全传输 (端口通常为465)</label>
+            </div>
+          </div>
+
+          <div class="channel-group">
+            <h5 class="channel-title">Telegram Bot</h5>
+            <div class="form-row">
+              <div class="form-group" style="flex:1"><label>Bot Token</label><input type="text" id="pushTgToken" class="form-input" placeholder="123456:ABC..."></div>
+              <div class="form-group" style="flex:1"><label>Chat ID</label><input type="text" id="pushTgChatId" class="form-input" placeholder="例如：-100123456"></div>
+            </div>
+          </div>
+
+          <div class="settings-actions">
+            <button class="btn btn-primary" style="flex:1;" onclick="savePushSettings()">保存推送配置</button>
+            <button class="btn btn-secondary" style="flex:1;" onclick="testNotify()">📨 发送测试通知</button>
+          </div>
         </div>
-        <div class="form-row">
-          <div class="form-group" style="flex:1"><label>账号</label><input type="text" id="pushSmtpUser" class="form-input" placeholder="发件邮箱"></div>
-          <div class="form-group" style="flex:1"><label>密码/授权码</label><input type="password" id="pushSmtpPass" class="form-input" placeholder="留空不改"></div>
+
+        <!-- 页面 2: 数据与备份 -->
+        <div id="subtab-backup" class="settings-page">
+          <div class="channel-group">
+            <h5 class="channel-title">数据导入与导出</h5>
+            <p class="modal-desc" style="margin-bottom:12px;">导出或恢复包含全部 12 个事件及农历字段的完整 JSON 数据。</p>
+            <div style="display:flex; gap:10px;">
+              <button class="btn btn-secondary" style="flex:1;" onclick="exportData()">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                导出 JSON 备份
+              </button>
+              <button class="btn btn-secondary" style="flex:1;" onclick="document.getElementById('importFile').click()">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                导入 JSON 文件
+              </button>
+            </div>
+          </div>
+
+          <div class="channel-group">
+            <h5 class="channel-title">自动备份策略</h5>
+            <div class="form-group">
+              <label class="checkbox-label"><input type="checkbox" id="backupEnabled" checked> 启用每日自动备份</label>
+            </div>
+            <div class="form-row">
+              <div class="form-group" style="flex:1;">
+                <label>每日备份执行时间</label>
+                <input type="text" id="backupTime" class="form-input" placeholder="03:00">
+              </div>
+              <div class="form-group" style="flex:1;">
+                <label>保留份数上限</label>
+                <input type="number" id="backupCount" class="form-input" min="1" max="365" placeholder="30">
+              </div>
+            </div>
+            <div style="display:flex; gap:10px; margin-top:8px;">
+              <button class="btn btn-primary" style="flex:1;" onclick="saveBackupSettings()">保存备份策略</button>
+              <button class="btn btn-secondary" style="flex:1;" onclick="manualBackup()">📦 立即创建全量备份</button>
+            </div>
+          </div>
         </div>
-        <div class="form-row">
-          <div class="form-group" style="flex:1"><label>发件人</label><input type="text" id="pushSmtpFrom" class="form-input" placeholder="同账号即可"></div>
-          <div class="form-group" style="flex:1"><label>收件人（逗号分隔）</label><input type="text" id="pushSmtpTo" class="form-input" placeholder="xxx@qq.com"></div>
-        </div>
-        <div class="form-group"><label><input type="checkbox" id="pushSmtpSsl" checked> 使用 SSL</label></div>
 
-        <h5 style="margin:14px 0 6px;color:var(--text-secondary)">Telegram</h5>
-        <div class="form-row">
-          <div class="form-group" style="flex:1"><label>Bot Token</label><input type="text" id="pushTgToken" class="form-input" placeholder="123456:ABC..."></div>
-          <div class="form-group" style="flex:1"><label>Chat ID</label><input type="text" id="pushTgChatId" class="form-input" placeholder="聊天ID"></div>
-        </div>
-
-        <div style="display:flex;gap:8px;margin-top:16px;">
-          <button class="btn btn-primary" style="flex:1;" onclick="savePushSettings()">保存推送设置</button>
-          <button class="btn" style="flex:1;background:var(--border);color:var(--text);" onclick="testNotify()">📨 测试推送</button>
+        <!-- 页面 3: 安全密码 -->
+        <div id="subtab-password" class="settings-page">
+          <div class="channel-group">
+            <h5 class="channel-title">修改后台访问密码</h5>
+            <p class="modal-desc" style="margin-bottom:14px;">修改密码后本地将自动保持登录态。日历订阅 Token 独立不受改密影响。</p>
+            <div class="form-group"><label>当前原密码</label><input type="password" id="oldPassword" class="form-input" placeholder="输入当前访问密码"></div>
+            <div class="form-group"><label>新密码</label><input type="password" id="newPassword" class="form-input" placeholder="至少 4 位字符"></div>
+            <div class="form-group"><label>确认新密码</label><input type="password" id="newPassword2" class="form-input" placeholder="再次输入新密码"></div>
+            <button class="btn btn-primary" style="width:100%; margin-top:8px;" onclick="changePassword()">确认修改密码</button>
+          </div>
         </div>
 
-        <hr style="margin:20px 0;border:none;border-top:1px solid var(--border);">
+        <!-- 页面 4: 用户管理 (管理员可见) -->
+        <div id="subtab-users" class="settings-page">
+          <div class="channel-group">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+              <h5 class="channel-title" style="margin-bottom:0;">多用户列表</h5>
+              <button class="btn btn-primary btn-sm" onclick="openAddUserModal()">+ 新增用户</button>
+            </div>
+            <div id="userListContainer" style="overflow-x:auto;">
+              <p class="modal-desc">加载用户列表中...</p>
+            </div>
+          </div>
+        </div>
 
-        <!-- 密码修改 -->
-        <h4 style="margin:4px 0 10px;color:var(--accent)">🔑 修改密码</h4>
-        <div class="form-group"><label>当前密码</label><input type="password" id="oldPassword" class="form-input" placeholder="输入当前密码"></div>
-        <div class="form-group"><label>新密码</label><input type="password" id="newPassword" class="form-input" placeholder="至少4位"></div>
-        <div class="form-group"><label>确认新密码</label><input type="password" id="newPassword2" class="form-input" placeholder="再次输入新密码"></div>
-        <button class="btn btn-primary" style="width:100%;" onclick="changePassword()">修改密码</button>
-
-        <p id="settingsMsg" style="text-align:center;margin-top:12px;font-size:14px;display:none;"></p>
+        <p id="settingsMsg" class="settings-msg" style="display:none;"></p>
       </div>
     </div>
   </div>
@@ -257,26 +397,88 @@
   <div class="modal-overlay" id="confirmModal" style="display:none">
     <div class="modal modal-sm">
       <div class="modal-body" style="text-align:center; padding:28px 20px;">
-        <p id="confirmText" style="font-size:16px; margin-bottom:20px;white-space:pre-line;"></p>
+        <p id="confirmText" style="font-size:15px; line-height:1.6; margin-bottom:20px; white-space:pre-line;"></p>
         <div style="display:flex; gap:12px; justify-content:center;">
-          <button class="btn" style="background:var(--border); color:var(--text);" onclick="closeConfirm(false)">取消</button>
-          <button class="btn btn-delete" onclick="closeConfirm(true)">确认</button>
+          <button class="btn btn-secondary" onclick="closeConfirm(false)">取消</button>
+          <button class="btn btn-delete" onclick="closeConfirm(true)">确认操作</button>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- 底部工具栏 -->
+  <!-- 新增/编辑用户弹窗 -->
+  <div class="modal-overlay" id="userModal" style="display:none; z-index:250;">
+    <div class="modal modal-sm">
+      <div class="modal-header">
+        <h3 id="userModalTitle">新增用户</h3>
+        <button class="modal-close" onclick="document.getElementById('userModal').style.display='none'">✕</button>
+      </div>
+      <form id="userForm" onsubmit="saveUser(event)">
+        <input type="hidden" id="manageUserId">
+        <div class="form-group">
+          <label>用户名 *</label>
+          <input type="text" id="manageUsername" class="form-input" required placeholder="登录用户名 (字母/数字)">
+        </div>
+        <div class="form-group">
+          <label>显示昵称</label>
+          <input type="text" id="manageDisplayName" class="form-input" placeholder="例如：张三、家人">
+        </div>
+        <div class="form-group">
+          <label>角色权限</label>
+          <select id="manageRole" class="form-select">
+            <option value="user">普通用户 (管理个人事件)</option>
+            <option value="admin">管理员 (全局设置与用户管理)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label id="managePasswordLabel">登录密码 *</label>
+          <input type="password" id="managePassword" class="form-input" placeholder="至少 4 位字符">
+        </div>
+        <div class="form-actions">
+          <button type="button" class="btn btn-secondary" onclick="document.getElementById('userModal').style.display='none'">取消</button>
+          <button type="submit" class="btn btn-primary">保存用户</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 底部精修现代化工具栏 (4个核心入口：日历、设置、主题、退出) -->
   <footer class="footer">
-    <button class="tool-btn" onclick="showCalendarModal()">📅 日历</button>
-    <button class="tool-btn" onclick="exportData()">⬇ 导出</button>
-    <button class="tool-btn" onclick="document.getElementById('importFile').click()">⬆ 导入</button>
-    <input type="file" id="importFile" accept=".json" style="display:none" onchange="importData(event)">
-    <button class="tool-btn" onclick="showSettings()">⚙️ 设置</button>
-    <button class="tool-btn" onclick="doLogout()">🚪 退出</button>
-    <button class="tool-btn theme-btn" onclick="toggleTheme()">🌙 暗色</button>
+    <button class="tool-btn" onclick="showCalendarModal()" title="订阅到日历">
+      <svg class="tool-btn-icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+        <line x1="16" y1="2" x2="16" y2="6"></line>
+        <line x1="8" y1="2" x2="8" y2="6"></line>
+        <line x1="3" y1="10" x2="21" y2="10"></line>
+      </svg>
+      <span>日历</span>
+    </button>
+    <button class="tool-btn" onclick="showSettings()" title="推送、备份与安全设置">
+      <svg class="tool-btn-icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="3"></circle>
+        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+      </svg>
+      <span>设置</span>
+    </button>
+    <button class="tool-btn theme-btn" onclick="toggleTheme()" title="切换亮暗主题">
+      <span id="themeIconContainer">
+        <svg class="tool-btn-icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+        </svg>
+      </span>
+      <span id="themeText">暗色</span>
+    </button>
+    <button class="tool-btn tool-btn-danger" onclick="doLogout()" title="退出当前登录">
+      <svg class="tool-btn-icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+        <polyline points="16 17 21 12 16 7"></polyline>
+        <line x1="21" y1="12" x2="9" y2="12"></line>
+      </svg>
+      <span>退出</span>
+    </button>
   </footer>
 </div>
+
 <script src="/static/app.js"></script>
 </body>
 </html>

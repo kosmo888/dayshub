@@ -2,8 +2,11 @@
 DaysHub 配置文件 v1.1.0 — 所有配置通过环境变量注入，适配 Docker 部署
 """
 import os
+import secrets
+import hmac
+import time
 
-VERSION = "1.1.0"
+VERSION = "1.3.0"
 
 class Config:
     # ========== 基础 ==========
@@ -93,6 +96,42 @@ class Config:
         return cls.SECRET_KEY != "dayshub-dev-key-change-me"
 
 
+# ========== 自动备份与维护配置 ==========
+
+def load_backup_config() -> dict:
+    """从 DB settings 表读取自动备份配置"""
+    try:
+        from models import get_setting
+        en = str(get_setting("backup_enabled", "true") or "true")
+        bt = str(get_setting("backup_time", "03:00") or "03:00")
+        bc = int(get_setting("backup_count", "30") or 30)
+        return {
+            "backup_enabled": en.lower() == "true",
+            "backup_time": bt,
+            "backup_count": bc,
+        }
+    except Exception:
+        return {
+            "backup_enabled": True,
+            "backup_time": "03:00",
+            "backup_count": 30,
+        }
+
+def save_backup_config(data: dict):
+    """保存备份配置至 DB settings 表"""
+    from models import set_setting
+    if "backup_enabled" in data:
+        set_setting("backup_enabled", "true" if data["backup_enabled"] else "false")
+    if "backup_time" in data and data["backup_time"]:
+        set_setting("backup_time", str(data["backup_time"]).strip())
+    if "backup_count" in data and data["backup_count"]:
+        try:
+            cnt = max(1, int(data["backup_count"]))
+            set_setting("backup_count", str(cnt))
+        except ValueError:
+            pass
+
+
 # ========== 推送配置（从DB动态读取，覆盖环境变量） ==========
 _push_cache = {}
 _push_cache_ts = 0
@@ -170,7 +209,8 @@ def save_push_config(data: dict):
 
 def change_password(old_pass: str, new_pass: str) -> bool:
     """修改访问密码，存DB settings表，验证旧密码"""
-    if old_pass != Config.API_TOKEN:
+    current_pass = get_current_password()
+    if not hmac.compare_digest(str(old_pass), str(current_pass)):
         return False
     if not new_pass or len(new_pass) < 4:
         return False
@@ -191,3 +231,70 @@ def get_current_password() -> str:
     except Exception:
         pass
     return Config.API_TOKEN
+
+
+def get_ical_token() -> str:
+    """获取独立的 iCal 订阅 Token（只读）"""
+    try:
+        from models import get_setting, set_setting
+        tok = get_setting("ical_token")
+        if tok:
+            return tok
+        # 初次不存在则自动生成
+        tok = secrets.token_urlsafe(24)
+        set_setting("ical_token", tok)
+        return tok
+    except Exception:
+        return "dayshub-ical-default"
+
+
+def reset_ical_token() -> str:
+    """重置 iCal 订阅 Token"""
+    from models import set_setting
+    tok = secrets.token_urlsafe(24)
+    set_setting("ical_token", tok)
+    return tok
+
+
+# ========== 登录防爆破频控 (5次失败锁10分钟) ==========
+_login_failures = {}  # {ip: [fail_timestamp, ...]}
+_login_locks = {}     # {ip: unlock_timestamp}
+MAX_FAILURES = 5
+LOCK_SECONDS = 600    # 10 分钟
+
+def check_login_rate_limit(ip: str) -> tuple[bool, int]:
+    """检查是否被锁定。返回 (is_allowed, remaining_lock_seconds)"""
+    now = time.time()
+    # 清理过期锁
+    if ip in _login_locks:
+        if now < _login_locks[ip]:
+            return False, int(_login_locks[ip] - now)
+        else:
+            del _login_locks[ip]
+            if ip in _login_failures:
+                del _login_failures[ip]
+
+    # 清理 10 分钟前的历史失败
+    if ip in _login_failures:
+        _login_failures[ip] = [ts for ts in _login_failures[ip] if now - ts < LOCK_SECONDS]
+    return True, 0
+
+def record_login_failure(ip: str) -> tuple[bool, int]:
+    """记录一次登录失败。返回 (is_locked, remaining_seconds)"""
+    now = time.time()
+    if ip not in _login_failures:
+        _login_failures[ip] = []
+    _login_failures[ip].append(now)
+    # 保留窗口内失败
+    _login_failures[ip] = [ts for ts in _login_failures[ip] if now - ts < LOCK_SECONDS]
+    if len(_login_failures[ip]) >= MAX_FAILURES:
+        _login_locks[ip] = now + LOCK_SECONDS
+        return True, LOCK_SECONDS
+    return False, 0
+
+def reset_login_failure(ip: str):
+    """登录成功，重置计数"""
+    if ip in _login_failures:
+        del _login_failures[ip]
+    if ip in _login_locks:
+        del _login_locks[ip]

@@ -1,20 +1,21 @@
-# 📅 DaysHub · 时光看板 v1.2.0
+# 📅 DaysHub · 时光看板 v1.4.0
 
 > 农历 + 公历双轨倒数日 / 纪念日 / 累计日管理中心
-> Docker 一键部署 · 密码认证 · 多通道推送 · iCal 日历订阅 · 事件级提醒
+> Docker 一键部署 · 多用户与后台管理 · 独立反代支持 (127.0.0.1) · 独立 iCal 订阅 · Waitress 生产 WSGI
 
 ## ✨ 功能一览
 
 | 模块 | 功能 |
 |:---|:---|
-| **日期引擎** | 公历/农历双向换算、倒数日、累计日、100/1000天里程碑、年/月进度条、24节气(2024-2035)、生肖天干地支 |
-| **事件管理** | 7大分类、备注备忘、置顶、搜索筛选、事件历史时间线、Web端增删改查、**每事件单独提前提醒天数(默认3天)** |
-| **通知推送** | 企业微信Webhook、SMTP邮件(HTML+纯文本回退)、TelegramBot、通用自定义Webhook、推送失败重试 |
-| **认证安全** | **全站密码认证**(登录页)、密码本地存一年、退出登录、WebUI修改密码、所有API均需认证 |
-| **设置页面** | **WebUI内配置推送通道**、修改密码，无需改配置文件重启 |
-| **日历集成** | iCal订阅链接一键导入Google/Apple Calendar、农历自动转公历 |
-| **前端** | 彩色卡片UI、暗色模式、搜索筛选、排序按钮、统计仪表盘、响应式、公历农历双向同步 |
-| **部署** | Docker多阶段构建、HEALTHCHECK、环境变量配置、tzdata时区 |
+| **多用户与权限** | **多用户登录、管理员与普通用户角色分离、用户增删改查、密码安全重置、Token 鉴权** |
+| **日期引擎** | 公历/农历双向换算、小月30日平滑容错、倒数日、累计日、100/1000天里程碑、年/月进度条、24节气(2024-2035)、生肖天干地支 |
+| **事件管理** | 7大分类、备注备忘、置顶、搜索防抖(250ms)、事件历史时间线、Web端增删改查、**每事件单独提前提醒天数(默认3天)**、农历/公历状态彻底解耦 |
+| **通知推送** | 企业微信Webhook、SMTP邮件(HTML+纯文本回退)、TelegramBot、通用自定义Webhook、推送失败重试与实时反馈 |
+| **认证与安全** | **全站登录认证**、**登录防爆破(5次失败锁定10分钟)**、**iCal 独立只读 Token(与主密码解耦)**、PBKDF2-SHA256 安全哈希 |
+| **设置中心** | **多选项卡分页设置面板**(推送通知 / 数据与备份 / 安全密码 / 用户管理)、自动备份策略可配、修改密码 |
+| **日历集成** | iCal 独立订阅链接一键导入 Google/Apple Calendar、农历自动转公历、全设备安全同步 |
+| **现代前端** | 纯单色矢量 SVG 导航栏、毛玻璃悬浮交互、轻量 Toast 提示、暗色模式、PWA 原生支持(添加到主屏幕) |
+| **部署与反代** | **默认绑定 127.0.0.1:5217 (便于 Nginx/1Panel/Caddy 等直接反向代理)**、Waitress 多线程生产 WSGI、HEALTHCHECK |
 
 ## 🏗️ 架构
 
@@ -90,28 +91,48 @@ docker compose up -d
 3. Google Calendar → 左侧「其他日历 +」→「通过网址添加」→ 粘贴链接
 4. 农历生日/纪念日自动转公历，全设备同步
 
+## 🌐 Nginx 反向代理配置参考
+
+由于 DaysHub 默认绑定本机 `127.0.0.1:5217`，可直接在宿主机 Nginx / 1Panel / OpenResty 中添加反代配置：
+
+```nginx
+server {
+    listen 80;
+    server_name days.yourdomain.com;
+
+    location / {
+        proxy_pass http://127.0.0.1:5217;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+```
+
 ## 🔌 API 速查
 
-| 方法 | 路径 | 说明 |
-|:---|:---|:---|
-| POST | `/api/login` | 密码验证登录 |
-| GET | `/api/dashboard` | 完整看板数据 |
-| GET | `/api/events` | 所有事件（含计算字段） |
-| GET | `/api/events/search?q=xx&category=xx` | 搜索事件 |
-| POST | `/api/events` | 创建事件 |
-| PUT | `/api/events/:id` | 更新事件 |
-| DELETE | `/api/events/:id` | 删除事件 |
-| GET | `/api/events/:id/timeline` | 事件历史时间线 |
-| GET | `/api/lunar/:date` | 公历转农历 |
-| GET | `/api/lunar_to_solar/:y/:m/:d` | 农历转公历 |
-| GET | `/api/calendar.ics` | iCal订阅源 |
-| GET | `/api/export` | 导出JSON |
-| POST | `/api/import?replace=true` | 导入JSON |
-| GET | `/api/settings/push` | 获取推送设置 |
-| PUT | `/api/settings/push` | 保存推送设置 |
-| PUT | `/api/settings/password` | 修改密码 |
-| POST | `/api/notify/test` | 测试推送 |
-| GET | `/health` | 健康检查（免认证） |
+| 方法 | 路径 | 权限 | 说明 |
+|:---|:---|:---:|:---|
+| POST | `/api/login` | 公开 | 用户名密码登录 / Token 颁发 |
+| GET | `/api/user/profile` | 登录用户 | 获取当前登录用户信息 |
+| GET | `/api/admin/users` | 管理员 | 用户列表管理 |
+| POST | `/api/admin/users` | 管理员 | 创建新系统用户 |
+| PUT | `/api/admin/users/:id` | 管理员 | 修改用户信息 / 重置密码 |
+| DELETE | `/api/admin/users/:id` | 管理员 | 删除指定用户 |
+| GET | `/api/dashboard` | 登录用户 | 完整看板数据 |
+| GET | `/api/events` | 登录用户 | 事件列表 |
+| POST | `/api/events` | 登录用户 | 创建事件 |
+| PUT | `/api/events/:id` | 登录用户 | 更新事件 |
+| DELETE | `/api/events/:id` | 登录用户 | 删除事件 |
+| GET | `/api/calendar.ics` | 独立 Token | iCal 只读订阅源 |
+| GET | `/api/settings/backup` | 登录用户 | 获取自动备份配置 |
+| PUT | `/api/settings/backup` | 登录用户 | 保存自动备份配置（热重载调度） |
+| POST | `/api/backup` | 登录用户 | 立即创建全量备份 |
+| GET | `/api/settings/push` | 登录用户 | 获取推送设置 |
+| PUT | `/api/settings/push` | 登录用户 | 保存推送设置 |
+| PUT | `/api/settings/password` | 登录用户 | 用户修改密码 |
+| GET | `/health` | 公开 | 健康检查（Waitress 状态） |
 
 > 所有 API 除 `/api/login` 和 `/health` 外均需密码认证。
 
@@ -151,6 +172,24 @@ dayshub/
 - Docker 多阶段构建
 
 ## 📝 Changelog
+
+### v1.4.0 (多用户与后台管理系统)
+- 👥 **多用户管理系统**：新增 users / user_tokens 表，支持管理员与普通用户角色分离
+- 🛡️ **反向代理适配**：默认绑定 `127.0.0.1:5217`，配合宿主机 Nginx/1Panel/Caddy 安全反代与 SSL 证书
+- 🔐 **PBKDF2-SHA256 安全哈希**：所有用户密码均采用强哈希算法加密存储
+- ⚙️ **分页式后台管理面板**：设置中心集成「用户管理」分页，支持一键创建、编辑、重置密码及停用
+- 🔄 **事件归属绑定**：所有创建事件自动关联创建用户，支持平滑迁移已有数据
+
+### v1.3.0 (安全加固与工程优化)
+- 🛡️ **内网端口绑定**：`docker-compose.yml` 默认绑定 `100.64.0.1:5217:5217`，阻断公网暴露隐患
+- 🔒 **登录防爆破机制**：`/api/login` 引入 IP 频控，连续 5 次失败自动锁定 10 分钟 (429)
+- 🔑 **iCal 订阅 Token 解耦**：独立生成只读 `ical_token`，与后台管理主密码彻底分离，且支持在 UI 中一键安全重置
+- 🐛 **取消农历残留 Bug 修复**：编辑事件取消农历时显式清空数据库 `lunar_month` / `lunar_day`
+- 📅 **农历小月 30 日平滑容错**：`lunar_to_solar` 遇小月无 30 日时自动平滑降级至 29 日
+- 🚀 **Waitress 生产 WSGI**：引入多线程生产级 WSGI 服务器，替代 Flask 内置开发服务器
+- 🧹 **死代码与冗余清理**：彻底移除 `notifier.py` 中已废弃的旧晨报生成函数及孤儿代码
+- 🔍 **前端搜索防抖**：添加 250ms 输入防抖，避免高频请求
+- ⚠️ **数据导入安全确认**：导入 JSON 前增加破坏性覆盖确认弹窗
 
 ### v1.2.0
 - 🔑 全站密码认证（登录页 + 一年有效期 + 退出按钮）
