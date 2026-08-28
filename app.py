@@ -93,6 +93,15 @@ def create_app():
     # 初始化数据库
     init_db()
 
+    @app.after_request
+    def add_header(response):
+        # 禁用 HTML / 静态资源浏览器强制缓存，确保版本更新即时呈现
+        if "text/html" in response.headers.get("Content-Type", "") or "javascript" in response.headers.get("Content-Type", "") or "css" in response.headers.get("Content-Type", ""):
+            response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+            response.headers["Pragma"] = "no-cache"
+            response.headers["Expires"] = "0"
+        return response
+
     # 首次加载示例数据
     if Config.SEED_EXAMPLES and get_setting("seeded") != "1":
         seed_example_data()
