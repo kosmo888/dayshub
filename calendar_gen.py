@@ -10,13 +10,14 @@ from lunar_engine import get_next_lunar_birthday, lunar_to_solar
 from config import Config
 
 
-def generate_ics(years_ahead: int = 3) -> str:
+def generate_ics(years_ahead: int = 3, user_id: int | None = None) -> str:
     """
     生成完整的 iCalendar 字符串
+    - 支持按用户隔离只导出自己的日历事件
     - 循环事件展开为未来 years_ahead 年
     - 倒数日和累计日各生成一个事件
     """
-    events = list_events()
+    events = list_events(user_id=user_id)
     today = date.today()
     lines = [
         "BEGIN:VCALENDAR",
@@ -36,7 +37,21 @@ def generate_ics(years_ahead: int = 3) -> str:
         note = ev["note"] or ""
         ev_date = date.fromisoformat(ev["date"])
 
-        if ev["event_type"] == "recurring" or ev["is_recurring"]:
+        if ev["event_type"] == "monthly":
+            # 每月重复事件：展开未来 12 个月
+            import calendar
+            for m_offset in range(12):
+                y = today.year + (today.month - 1 + m_offset) // 12
+                m = (today.month - 1 + m_offset) % 12 + 1
+                _, max_d = calendar.monthrange(y, m)
+                d = date(y, m, min(ev_date.day, max_d))
+                summary = f"{icon} {title}"
+                desc = f"每月重复日（每逢 {ev_date.day} 日）"
+                if note:
+                    desc += f"\\n备注: {note}"
+                lines.extend(_make_vevent(d, summary, desc, f"{ev['id']}_{y}_{m}"))
+
+        elif ev["event_type"] == "recurring" or ev["is_recurring"]:
             # 循环事件：展开未来 N 年
             if ev["lunar_month"] and ev["lunar_day"]:
                 # 农历循环

@@ -250,27 +250,59 @@ def get_current_password() -> str:
     return Config.API_TOKEN
 
 
-def get_ical_token() -> str:
-    """获取独立的 iCal 订阅 Token（只读）"""
+def get_ical_token(user_id: int | None = None) -> str:
+    """获取独立的 iCal 订阅 Token（支持多用户独立只读 Token）"""
     try:
         from models import get_setting, set_setting
-        tok = get_setting("ical_token")
+        key = f"ical_token_{user_id}" if user_id else "ical_token"
+        tok = get_setting(key)
         if tok:
             return tok
-        # 初次不存在则自动生成
         tok = secrets.token_urlsafe(24)
-        set_setting("ical_token", tok)
+        set_setting(key, tok)
         return tok
     except Exception:
-        return "dayshub-ical-default"
+        return f"dayshub-ical-{user_id or 'default'}"
 
 
-def reset_ical_token() -> str:
+def reset_ical_token(user_id: int | None = None) -> str:
     """重置 iCal 订阅 Token"""
     from models import set_setting
+    key = f"ical_token_{user_id}" if user_id else "ical_token"
     tok = secrets.token_urlsafe(24)
-    set_setting("ical_token", tok)
+    set_setting(key, tok)
     return tok
+
+
+def verify_ical_token(token: str) -> tuple[bool, int | None]:
+    """验证 ical_token，返回 (is_valid, user_id)"""
+    if not token:
+        return False, None
+    import hmac
+    from models import get_db, list_users
+    # 1. 验证全局/管理员旧版 token
+    global_tok = get_ical_token(None)
+    if hmac.compare_digest(token, global_tok):
+        return True, 1
+
+    # 2. 验证各个用户的专属 ical_token
+    conn = get_db()
+    rows = conn.execute("SELECT key, value FROM settings WHERE key LIKE 'ical_token_%'").fetchall()
+    conn.close()
+    for r in rows:
+        stored_tok = r["value"]
+        if stored_tok and hmac.compare_digest(token, stored_tok):
+            try:
+                uid = int(r["key"].replace("ical_token_", ""))
+                return True, uid
+            except ValueError:
+                return True, None
+
+    # 3. 兼容管理密码直通
+    cur_pass = str(get_current_password())
+    if hmac.compare_digest(token, cur_pass):
+        return True, 1
+    return False, None
 
 
 # ========== 登录防爆破频控 (5次失败锁10分钟) ==========

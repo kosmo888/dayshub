@@ -182,6 +182,10 @@ function _updateUserUI() {
   if (userBtn) {
     userBtn.style.display = isAdmin ? 'inline-flex' : 'none';
   }
+  const backupStrategy = document.getElementById('backupStrategySection');
+  if (backupStrategy) {
+    backupStrategy.style.display = isAdmin ? 'block' : 'none';
+  }
 }
 
 async function doLogin(e) {
@@ -785,6 +789,54 @@ function switchSettingsTab(tabName) {
 
   if (tabName === 'users') {
     loadUserList();
+  }
+  if (tabName === 'backup') {
+    loadBackupFileList();
+  }
+}
+
+// ========== 备份文件列表加载与下载 ==========
+async function loadBackupFileList() {
+  const container = document.getElementById('backupFileListContainer');
+  if (!container) return;
+  const user = getCurrentUser();
+  if (!user || user.role !== 'admin') {
+    container.innerHTML = '<p class="modal-desc" style="color:var(--text-muted)">普通用户可直接使用上方 JSON 导入/导出备份</p>';
+    return;
+  }
+  try {
+    const resp = await apiFetch('/api/backup/list');
+    const data = await resp.json();
+    if (resp.ok && data.ok) {
+      const files = data.files || [];
+      if (!files.length) {
+        container.innerHTML = '<p class="modal-desc">暂无备份快照文件</p>';
+        return;
+      }
+      let html = '<div style="display:flex; flex-direction:column; gap:6px;">';
+      for (const f of files) {
+        const sizeKb = (f.size / 1024).toFixed(1);
+        const token = getToken() || '';
+        const dlUrl = `/api/backup/download/${encodeURIComponent(f.filename)}?token=${encodeURIComponent(token)}`;
+        html += `
+          <div style="display:flex; justify-content:space-between; align-items:center; padding:4px 0; border-bottom:1px solid var(--border);">
+            <div style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:65%;">
+              <b style="color:var(--text);">${f.filename}</b>
+              <span style="color:var(--text-muted); font-size:11px; margin-left:6px;">${sizeKb} KB · ${f.created_at}</span>
+            </div>
+            <a href="${dlUrl}" target="_blank" download="${f.filename}" class="btn btn-secondary btn-sm" style="text-decoration:none; padding:3px 8px; font-size:11px;">
+              ⬇ 下载
+            </a>
+          </div>
+        `;
+      }
+      html += '</div>';
+      container.innerHTML = html;
+    } else {
+      container.innerHTML = `<p class="modal-desc" style="color:var(--danger)">${data.msg || '无法加载备份列表'}</p>`;
+    }
+  } catch (err) {
+    container.innerHTML = '<p class="modal-desc" style="color:var(--danger)">加载备份列表失败</p>';
   }
 }
 

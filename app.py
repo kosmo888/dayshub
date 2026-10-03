@@ -6,9 +6,9 @@ DaysHub Flask 主应用 v1.1.0
 - 事件历史时间线
 - 后台定时任务
 """
-from flask import Flask, jsonify, request, render_template, Response, g
+from flask import Flask, jsonify, request, render_template, Response, g, send_from_directory
 from functools import wraps
-from datetime import date
+from datetime import date, datetime
 import json
 import os
 
@@ -462,7 +462,9 @@ def create_app():
     @app.route("/api/export")
     @require_auth
     def api_export():
-        return jsonify(export_data())
+        user = getattr(g, "current_user", None)
+        uid = user["id"] if user and user.get("role") != "admin" else None
+        return jsonify(export_data(user_id=uid))
 
     # ========== RESTful API（写操作需认证） ==========
 
@@ -484,9 +486,16 @@ def create_app():
     @require_auth
     def api_update_event(eid):
         data = request.get_json()
+        ev_existing = get_event(eid)
+        if not ev_existing:
+            return jsonify({"error": "事件不存在"}), 404
+        user = getattr(g, "current_user", None)
+        if user and user.get("role") != "admin":
+            if ev_existing.get("user_id") is not None and ev_existing.get("user_id") != user.get("id"):
+                return jsonify({"error": "无权修改其他用户的事件"}), 403
         ev = update_event(eid, data)
         if not ev:
-            return jsonify({"error": "事件不存在"}), 404
+            return jsonify({"error": "更新失败"}), 500
         logger.info(f"事件更新: {ev['title']} (id={ev['id']})")
         from notifier import send_webhook
         send_webhook("event_updated", ev)
@@ -495,20 +504,29 @@ def create_app():
     @app.route("/api/events/<int:eid>", methods=["DELETE"])
     @require_auth
     def api_delete_event(eid):
+        ev_existing = get_event(eid)
+        if not ev_existing:
+            return jsonify({"error": "事件不存在"}), 404
+        user = getattr(g, "current_user", None)
+        if user and user.get("role") != "admin":
+            if ev_existing.get("user_id") is not None and ev_existing.get("user_id") != user.get("id"):
+                return jsonify({"error": "无权删除其他用户的事件"}), 403
         if delete_event(eid):
             logger.info(f"事件删除: id={eid}")
             from notifier import send_webhook
             send_webhook("event_deleted", {"id": eid})
             return jsonify({"ok": True})
-        return jsonify({"error": "事件不存在"}), 404
+        return jsonify({"error": "删除失败"}), 500
 
     @app.route("/api/import", methods=["POST"])
     @require_auth
     def api_import():
         data = request.get_json()
         replace = request.args.get("replace", "false").lower() == "true"
-        count = import_data(data, replace)
-        logger.info(f"数据导入: {count} 条 (replace={replace})")
+        user = getattr(g, "current_user", None)
+        uid = user["id"] if user and user.get("role") != "admin" else None
+        count = import_data(data, replace, user_id=uid)
+        logger.info(f"数据导入: {count} 条 (replace={replace}, user_id={uid})")
         return jsonify({"imported": count})
 
     @app.route("/api/notify/test", methods=["POST"])
@@ -568,6 +586,33 @@ def create_app():
         except Exception as e:
             logger.warning(f"重新调度备份任务失败: {e}")
         return jsonify({"ok": True, "config": load_backup_config(), "msg": "备份配置已保存"})
+
+    @app.route("/api/backup/list", methods=["GET"])
+    @require_admin
+    def api_backup_list():
+        import glob
+        backup_dir = os.path.join(Config.DATA_DIR, "backup")
+        os.makedirs(backup_dir, exist_ok=True)
+        files = []
+        for path in sorted(glob.glob(os.path.join(backup_dir, "*.*")), reverse=True):
+            fname = os.path.basename(path)
+            if fname.endswith(".db") or fname.endswith(".json"):
+                stat = os.stat(path)
+                files.append({
+                    "filename": fname,
+                    "size": stat.st_size,
+                    "created_at": datetime.fromtimestamp(stat.st_mtime).strftime("%Y-%m-%d %H:%M:%S")
+                })
+        return jsonify({"ok": True, "files": files})
+
+    @app.route("/api/backup/download/<path:filename>", methods=["GET"])
+    @require_admin
+    def api_backup_download(filename):
+        from flask import send_from_directory
+        backup_dir = os.path.join(Config.DATA_DIR, "backup")
+        # 安全过滤文件名防目录遍历
+        safe_name = os.path.basename(filename)
+        return send_from_directory(backup_dir, safe_name, as_attachment=True)
 
     @app.route("/manifest.json")
     def manifest():
@@ -654,34 +699,37 @@ def create_app():
     @require_auth
     def api_get_ical_token():
         from config import get_ical_token
-        return jsonify({"ok": True, "token": get_ical_token()})
+        user = getattr(g, "current_user", None)
+        uid = user["id"] if user else None
+        return jsonify({"ok": True, "token": get_ical_token(uid)})
 
     @app.route("/api/settings/ical_token/reset", methods=["POST"])
     @require_auth
     def api_reset_ical_token():
         from config import reset_ical_token
-        new_token = reset_ical_token()
-        return jsonify({"ok": True, "token": new_token, "msg": "日历订阅 Token 已重置"})
+        user = getattr(g, "current_user", None)
+        uid = user["id"] if user else None
+        new_token = reset_ical_token(uid)
+        return jsonify({"ok": True, "token": new_token, "msg": "专属日历订阅 Token 已重置"})
 
     @app.route("/api/calendar.ics")
     def api_ics():
-        from config import get_current_password, get_ical_token
-        import hmac
+        from config import verify_ical_token
         token = request.headers.get("Authorization", "")
         if token.startswith("Bearer "):
             token = token[7:]
         elif request.args.get("token"):
             token = request.args.get("token") or ""
-        token = str(token)
+        token = str(token).strip()
 
+        target_user_id = None
         if Config.auth_enabled():
-            cur_pass = str(get_current_password())
-            cur_ical = str(get_ical_token())
-            # 允许使用独立 ical_token 或主密码访问
-            if not (hmac.compare_digest(token, cur_ical) or hmac.compare_digest(token, cur_pass)):
+            valid, user_id = verify_ical_token(token)
+            if not valid:
                 return jsonify({"error": "Unauthorized"}), 401
+            target_user_id = user_id
 
-        ics = generate_ics()
+        ics = generate_ics(user_id=target_user_id)
         return Response(ics, mimetype="text/calendar", headers={
             "Content-Disposition": "attachment; filename=dayshub.ics",
             "Cache-Control": "max-age=3600",

@@ -19,7 +19,8 @@ from lunar_engine import (
 EVENT_TYPES = {
     "countdown": "倒数日",      # 未来某天，倒计时
     "accumulate": "累计日",     # 过去某天起，累计天数
-    "recurring": "循环日",      # 每年重复（公历或农历）
+    "recurring": "每年重复",    # 每年重复（公历或农历）
+    "monthly": "每月重复",      # 每月重复（如发工资、信用卡还款）
 }
 
 # 分类
@@ -422,6 +423,19 @@ def compute_event(ev: dict, base_date: date = None) -> dict:
         ev["next_milestone"] = get_next_milestone(ev_date, base_date)
         ev["milestones"] = get_milestones(ev_date, base_date)
 
+    elif ev["event_type"] == "monthly":
+        # 每月重复事件：计算本月或下月的对应日期
+        next_d = _next_monthly_date(ev_date, base_date)
+        ev["next_date"] = next_d.isoformat() if next_d else None
+        if next_d:
+            ev["days_remaining"] = days_until(next_d, base_date)
+            ev["is_today"] = (next_d == base_date)
+        else:
+            ev["days_remaining"] = None
+            ev["is_today"] = False
+        ev["days_passed"] = None
+        ev["age"] = None
+
     elif ev["event_type"] == "recurring" or ev["is_recurring"]:
         # 循环事件：计算下一个出现日期
         if ev["lunar_month"] and ev["lunar_day"]:
@@ -455,6 +469,26 @@ def compute_event(ev: dict, base_date: date = None) -> dict:
         ev["age"] = None
 
     return ev
+
+
+def _next_monthly_date(orig: date, base: date) -> date:
+    """计算每月重复事件的下一个日期（如遇到月末天数不足则取当月最后一天）"""
+    import calendar
+    target_day = orig.day
+    # 尝试当前月
+    y, m = base.year, base.month
+    _, max_d = calendar.monthrange(y, m)
+    d = date(y, m, min(target_day, max_d))
+    if d >= base:
+        return d
+    # 取下一个月
+    if m == 12:
+        y += 1
+        m = 1
+    else:
+        m += 1
+    _, max_d = calendar.monthrange(y, m)
+    return date(y, m, min(target_day, max_d))
 
 
 def _next_solar_anniversary(orig: date, base: date) -> date:
@@ -516,7 +550,7 @@ def get_dashboard_data(base_date: date = None, user_id: int | None = None) -> di
     # 分类
     countdown_list = [e for e in computed if e["event_type"] == "countdown"]
     accumulate_list = [e for e in computed if e["event_type"] == "accumulate"]
-    recurring_list = [e for e in computed if e["event_type"] == "recurring" or e["is_recurring"]]
+    recurring_list = [e for e in computed if e["event_type"] in ("recurring", "monthly") or e["is_recurring"]]
 
     # 排序
     countdown_list.sort(key=lambda x: (not x["is_pinned"], x.get("days_remaining", 9999)))
@@ -561,23 +595,29 @@ def set_setting(key: str, value: str):
 
 # ========== 导入导出与备份 ==========
 
-def export_data() -> dict:
-    """导出全部数据为 JSON"""
-    events = list_events(active_only=False)
+def export_data(user_id: int | None = None) -> dict:
+    """导出事件数据为 JSON（支持按用户隔离）"""
+    events = list_events(active_only=False, user_id=user_id)
     return {"events": events, "exported_at": datetime.now().isoformat()}
 
 
-def import_data(data: dict, replace: bool = False) -> int:
-    """从 JSON 导入数据"""
+def import_data(data: dict, replace: bool = False, user_id: int | None = None) -> int:
+    """从 JSON 导入数据（支持按用户隔离，避免越权清空其他用户事件）"""
+    target_uid = user_id or 1
     if replace:
         conn = get_db()
-        conn.execute("DELETE FROM events")
+        if user_id is not None:
+            conn.execute("DELETE FROM events WHERE user_id = ?", (user_id,))
+        else:
+            conn.execute("DELETE FROM events")
         conn.commit()
         conn.close()
     count = 0
     for ev in data.get("events", []):
         try:
-            create_event(ev)
+            ev_copy = dict(ev)
+            ev_copy.pop("id", None)
+            create_event(ev_copy, user_id=target_uid)
             count += 1
         except Exception as e:
             print(f"[IMPORT] 跳过失败项: {e}")

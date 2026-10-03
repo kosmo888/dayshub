@@ -174,7 +174,8 @@
             <select id="evType" class="form-select">
               <option value="countdown">倒数日</option>
               <option value="accumulate">累计日</option>
-              <option value="recurring">循环日（每年）</option>
+              <option value="recurring">每年重复</option>
+              <option value="monthly">每月重复 (如发薪、信用卡还款)</option>
             </select>
           </div>
           <div class="form-group">
@@ -368,7 +369,15 @@
           </div>
 
           <div class="channel-group">
-            <h5 class="channel-title">自动备份策略</h5>
+            <h5 class="channel-title">历史全量备份归档</h5>
+            <p class="modal-desc" style="margin-bottom:8px;">可下载历史数据库快照 (.db) 与离线完整数据包 (.json)。</p>
+            <div id="backupFileListContainer" style="max-height:160px; overflow-y:auto; border:1px solid var(--border); border-radius:var(--radius-sm); padding:6px 10px; background:var(--card-bg); font-size:12px;">
+              <p class="modal-desc">加载备份列表中...</p>
+            </div>
+          </div>
+
+          <div class="channel-group admin-only" id="backupStrategySection" style="display:none;">
+            <h5 class="channel-title">自动备份策略 (管理员)</h5>
             <div class="form-group">
               <label class="checkbox-label"><input type="checkbox" id="backupEnabled" checked> 启用每日自动备份</label>
             </div>

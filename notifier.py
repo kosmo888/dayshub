@@ -296,18 +296,20 @@ def build_reminder_html(to_notify: list, today: date) -> str:
 
 
 def check_and_notify():
-    """检查需要提醒的事件并发送通知（支持倒数/循环事件提前提醒及累计事件里程碑提醒）"""
-    from models import list_events, compute_event, get_db
+    """检查需要提醒的事件并发送通知（仅通知管理员事件，保护普通用户私人纪念日不外泄）"""
+    from models import list_events, compute_event, get_db, get_user_by_username
     today = date.today()
-    events = list_events()
+    admin_u = get_user_by_username("admin")
+    admin_id = admin_u["id"] if admin_u else 1
+    events = list_events(user_id=admin_id)
     to_notify = []
     ACCUMULATE_MILESTONES = {100, 200, 300, 500, 1000, 1500, 2000, 3000, 5000, 10000}
 
     for ev in events:
         ev = compute_event(ev, today)
 
-        # 1. 倒数日 / 循环日
-        if ev["event_type"] in ("countdown", "recurring"):
+        # 1. 倒数日 / 循环日 / 每月重复
+        if ev["event_type"] in ("countdown", "recurring", "monthly"):
             dr = ev.get("days_remaining")
             ev_advance = ev.get("advance_days")
             if ev_advance is None:
