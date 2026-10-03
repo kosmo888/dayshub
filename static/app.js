@@ -182,6 +182,22 @@ function _updateUserUI() {
   if (userBtn) {
     userBtn.style.display = isAdmin ? 'inline-flex' : 'none';
   }
+  const logsBtn = document.getElementById('subtabBtnLogs');
+  if (logsBtn) {
+    logsBtn.style.display = 'inline-flex';
+  }
+  const logModeToggle = document.getElementById('logModeToggle');
+  if (logModeToggle) {
+    logModeToggle.style.display = isAdmin ? 'inline-flex' : 'none';
+  }
+  const clearLogsBtn = document.getElementById('btnClearLogsBtn');
+  if (clearLogsBtn) {
+    clearLogsBtn.style.display = isAdmin ? 'inline-flex' : 'none';
+  }
+  const logTitle = document.getElementById('logTitleHeader');
+  if (logTitle) {
+    logTitle.textContent = isAdmin ? '操作审计日志' : '我的操作日志';
+  }
   const backupStrategy = document.getElementById('backupStrategySection');
   if (backupStrategy) {
     backupStrategy.style.display = isAdmin ? 'block' : 'none';
@@ -797,6 +813,9 @@ function switchSettingsTab(tabName) {
   if (tabName === 'users') {
     loadUserList();
   }
+  if (tabName === 'logs') {
+    loadSystemLogs(1);
+  }
   if (tabName === 'backup') {
     loadBackupFileList();
   }
@@ -1182,4 +1201,198 @@ function loadTheme() {
     document.documentElement.setAttribute('data-theme', 'dark');
   }
   _applyThemeUI(isDark);
+}
+
+// ========== 系统操作日志管理 ==========
+let currentLogPage = 1;
+let currentLogMode = 'audit';
+const LOG_PAGE_SIZE = 25;
+
+function switchLogMode(mode) {
+  currentLogMode = mode;
+  const btnAudit = document.getElementById('btnLogModeAudit');
+  const btnRuntime = document.getElementById('btnLogModeRuntime');
+  const viewAudit = document.getElementById('logAuditView');
+  const viewRuntime = document.getElementById('logRuntimeView');
+
+  if (mode === 'runtime') {
+    if (btnAudit) { btnAudit.style.background = 'transparent'; btnAudit.style.color = 'var(--text-muted)'; }
+    if (btnRuntime) { btnRuntime.style.background = 'var(--primary)'; btnRuntime.style.color = '#fff'; }
+    if (viewAudit) viewAudit.style.display = 'none';
+    if (viewRuntime) viewRuntime.style.display = 'block';
+    loadRuntimeLogs();
+  } else {
+    if (btnAudit) { btnAudit.style.background = 'var(--primary)'; btnAudit.style.color = '#fff'; }
+    if (btnRuntime) { btnRuntime.style.background = 'transparent'; btnRuntime.style.color = 'var(--text-muted)'; }
+    if (viewAudit) viewAudit.style.display = 'block';
+    if (viewRuntime) viewRuntime.style.display = 'none';
+    loadSystemLogs(currentLogPage || 1);
+  }
+}
+
+function refreshCurrentLogs() {
+  if (currentLogMode === 'runtime') {
+    loadRuntimeLogs();
+  } else {
+    loadSystemLogs(currentLogPage || 1);
+  }
+}
+
+async function loadRuntimeLogs() {
+  const container = document.getElementById('runtimeLogContainer');
+  const infoEl = document.getElementById('runtimeLogFileInfo');
+  if (!container) return;
+
+  const lines = document.getElementById('runtimeLogLines')?.value || '100';
+  container.textContent = '正在获取后端实时运行日志...';
+
+  try {
+    const resp = await apiFetch(`/api/admin/runtime_logs?lines=${lines}`);
+    const data = await resp.json();
+    if (!resp.ok || !data.ok) {
+      container.textContent = `❌ 获取运行日志失败: ${data.error || '权限不足或未知错误'}`;
+      return;
+    }
+    const logLines = data.lines || [];
+    container.textContent = logLines.length ? logLines.join('\n') : '(当前日志文件为空)';
+    if (infoEl) {
+      const sizeKB = (data.file_size / 1024).toFixed(1);
+      infoEl.textContent = `文件大小: ${sizeKB} KB | 当前展示: ${data.returned_count || 0} 行`;
+    }
+    // 自动滚动到最底部
+    container.scrollTop = container.scrollHeight;
+  } catch (err) {
+    container.textContent = `❌ 请求运行日志异常: ${err.message}`;
+  }
+}
+
+async function loadSystemLogs(page = 1) {
+  const container = document.getElementById('logListContainer');
+  const pagination = document.getElementById('logPagination');
+  if (!container) return;
+
+  const user = getCurrentUser();
+  if (!user) {
+    container.innerHTML = '<p class="modal-desc" style="color:var(--text-muted)">请先登录后查看日志</p>';
+    if (pagination) pagination.innerHTML = '';
+    return;
+  }
+
+  const isAdmin = user.role === 'admin';
+  const urlEndpoint = isAdmin ? '/api/admin/logs' : '/api/user/logs';
+
+  currentLogPage = page;
+  const module = document.getElementById('logFilterModule')?.value || '';
+  const keyword = (document.getElementById('logKeyword')?.value || '').trim();
+
+  container.innerHTML = '<p class="modal-desc">加载中...</p>';
+
+  try {
+    const params = new URLSearchParams({
+      limit: LOG_PAGE_SIZE,
+      offset: (page - 1) * LOG_PAGE_SIZE,
+    });
+    if (module) params.append('module', module);
+    if (keyword) params.append('keyword', keyword);
+
+    const resp = await apiFetch(`${urlEndpoint}?${params.toString()}`);
+    const data = await resp.json();
+    if (!resp.ok || !data.ok) {
+      container.innerHTML = `<p class="modal-desc" style="color:var(--danger)">加载失败: ${data.error || '未知错误'}</p>`;
+      return;
+    }
+
+    const logs = data.logs || [];
+    const total = data.total || 0;
+    const totalPages = Math.ceil(total / LOG_PAGE_SIZE) || 1;
+
+    if (!logs.length) {
+      container.innerHTML = '<p class="modal-desc">暂无符合条件的操作日志记录</p>';
+      if (pagination) pagination.innerHTML = '';
+      return;
+    }
+
+    const moduleMap = {
+      auth: '认证',
+      event: '事件',
+      user: '用户',
+      system: '系统',
+      category: '分类',
+      widget: '组件'
+    };
+
+    let html = `
+      <table class="log-table">
+        <thead>
+          <tr>
+            <th style="width:130px;">时间</th>
+            ${isAdmin ? '<th style="width:70px;">用户</th>' : ''}
+            <th style="width:65px;">模块</th>
+            <th>操作与详情</th>
+            <th style="width:100px;">IP 地址</th>
+            <th style="width:50px;">状态</th>
+          </tr>
+        </thead>
+        <tbody>
+    `;
+
+    for (const log of logs) {
+      const timeStr = (log.created_at || '').substring(5);
+      const uStr = log.username ? escapeHtml(log.username) : '<span style="color:var(--text-muted)">系统</span>';
+      const modStr = moduleMap[log.module] || escapeHtml(log.module || '其它');
+      const isOk = log.status === 'ok';
+      const statusBadge = isOk
+        ? '<span class="user-badge badge-log-ok">成功</span>'
+        : '<span class="user-badge badge-log-fail">失败</span>';
+      const details = escapeHtml(log.details || log.action);
+      const ipStr = escapeHtml(log.ip || '-');
+
+      html += `
+        <tr>
+          <td style="color:var(--text-muted); font-size:11px; white-space:nowrap;">${escapeHtml(timeStr)}</td>
+          ${isAdmin ? `<td><b>${uStr}</b></td>` : ''}
+          <td><span class="user-badge badge-log-module">${modStr}</span></td>
+          <td style="word-break:break-all;">${details}</td>
+          <td style="color:var(--text-muted); font-size:11px; font-family:monospace;">${ipStr}</td>
+          <td>${statusBadge}</td>
+        </tr>
+      `;
+    }
+
+    html += '</tbody></table>';
+    container.innerHTML = html;
+
+    if (pagination) {
+      pagination.innerHTML = `
+        <div>共 <b>${total}</b> 条日志 (第 ${page}/${totalPages} 页)</div>
+        <div style="display:flex; gap:6px;">
+          <button class="btn btn-secondary btn-sm" ${page <= 1 ? 'disabled' : ''} onclick="loadSystemLogs(${page - 1})">上一页</button>
+          <button class="btn btn-secondary btn-sm" ${page >= totalPages ? 'disabled' : ''} onclick="loadSystemLogs(${page + 1})">下一页</button>
+        </div>
+      `;
+    }
+  } catch (err) {
+    container.innerHTML = `<p class="modal-desc" style="color:var(--danger)">请求异常: ${err.message}</p>`;
+  }
+}
+
+function clearSystemLogsPrompt() {
+  showConfirm('确定要清理系统日志吗？\n建议保留近期记录或完全清空。', async () => {
+    try {
+      const resp = await apiFetch('/api/admin/logs', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ days_to_keep: 0 })
+      });
+      const data = await resp.json();
+      if (resp.ok && data.ok) {
+        showSettingsMsg(`✅ ${data.msg || '日志已清理'}`, false);
+        loadSystemLogs(1);
+      } else {
+        showSettingsMsg(`❌ 清理失败: ${data.error || '未知错误'}`, true);
+      }
+    } catch (e) {
+      showSettingsMsg(`❌ 网络异常: ${e.message}`, true);
+    }
+  });
 }

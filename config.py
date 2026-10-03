@@ -6,7 +6,7 @@ import secrets
 import hmac
 import time
 
-VERSION = "1.6.0"
+VERSION = "1.7.0"
 
 class Config:
     # ========== 基础 ==========
@@ -53,7 +53,9 @@ class Config:
 
     @classmethod
     def auth_enabled(cls):
-        return bool(cls.API_TOKEN)
+        # 现代 DaysHub 拥有完整的多用户与权限隔离体系，认证默认常开
+        # 仅当显式设置 DAYSHUB_DISABLE_AUTH=true 时才允许关闭（例如完全免密内网无用户模式）
+        return os.environ.get("DAYSHUB_DISABLE_AUTH", "").lower() != "true"
 
     @classmethod
     def mail_enabled(cls):

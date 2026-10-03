@@ -128,6 +128,19 @@ def create_app():
             return xri.strip()
         return request.remote_addr or "unknown"
 
+    def _log(action: str, module: str = "system", details: str = "", status: str = "ok", user=None):
+        try:
+            from models import log_system_action
+            u = user or getattr(g, "current_user", None)
+            uid = u["id"] if u and isinstance(u, dict) and "id" in u else None
+            uname = u["username"] if u and isinstance(u, dict) and "username" in u else ""
+            ip = _get_client_ip()
+            ua = request.headers.get("User-Agent", "")
+            log_system_action(user_id=uid, username=uname, action=action, module=module,
+                              details=details, ip=ip, user_agent=ua, status=status)
+        except Exception as e:
+            logger.warning(f"记录操作日志失败: {e}")
+
     @app.route("/api/system/public-info", methods=["GET"])
     def api_public_info():
         """获取公开系统配置（如是否开放注册）"""
@@ -177,10 +190,12 @@ def create_app():
         # 4. 创建用户并颁发 Token
         user = create_user(username, password, role="user", display_name=display_name)
         if not user:
+            _log("register", "auth", f"用户注册失败(数据库错误): {username}", status="fail")
             return jsonify({"ok": False, "error": "注册失败，请稍后重试"}), 500
 
         token = create_user_token(user["id"])
         logger.info(f"新用户注册成功: {username} (IP: {client_ip})")
+        _log("register", "auth", f"新用户注册成功: {username} ({display_name})", user=user)
 
         return jsonify({
             "ok": True,
@@ -210,6 +225,7 @@ def create_app():
         if not allowed:
             mins = max(1, (remaining_sec + 59) // 60)
             logger.warning(f"登录被频控拦截: {client_ip}, 剩余锁定时间 {remaining_sec}s")
+            _log("login", "auth", f"登录拦截(频控锁定): {client_ip}", status="fail")
             return jsonify({
                 "ok": False,
                 "error": f"连续登录失败次数过多，已被锁定，请 {mins} 分钟后再试"
@@ -232,6 +248,7 @@ def create_app():
                 if verify_password(password, user["password_hash"]):
                     reset_login_failure(client_ip)
                     token = create_user_token(user["id"])
+                    _log("login", "auth", f"用户登录成功: {username}", user=user)
                     return jsonify({
                         "ok": True,
                         "token": token,
@@ -249,19 +266,22 @@ def create_app():
             reset_login_failure(client_ip)
             admin_user = get_user_by_username("admin")
             token = create_user_token(admin_user["id"]) if admin_user else current_admin_pass
+            admin_info = {
+                "id": admin_user["id"] if admin_user else 1,
+                "username": "admin",
+                "role": "admin",
+                "display_name": "管理员"
+            }
+            _log("login", "auth", "管理员通过独立密码登录成功", user=admin_info)
             return jsonify({
                 "ok": True,
                 "token": token,
-                "user": {
-                    "id": admin_user["id"] if admin_user else 1,
-                    "username": "admin",
-                    "role": "admin",
-                    "display_name": "管理员"
-                }
+                "user": admin_info
             })
 
         is_locked, lock_sec = record_login_failure(client_ip)
         logger.warning(f"登录失败: {client_ip} (用户: {username or 'admin'})")
+        _log("login", "auth", f"密码验证失败 (用户: {username or 'admin'})", status="fail")
         if is_locked:
             mins = max(1, (lock_sec + 59) // 60)
             return jsonify({
@@ -269,6 +289,12 @@ def create_app():
                 "error": f"账号或密码错误。连续失败已被锁定 {mins} 分钟"
             }), 429
         return jsonify({"ok": False, "error": "用户名或密码错误"}), 401
+
+    @app.route("/api/logout", methods=["POST"])
+    def api_logout():
+        _log("logout", "auth", "用户退出登录")
+        return jsonify({"ok": True, "msg": "已安全退出"})
+
 
     # ========== 用户与后台管理 API ==========
 
@@ -302,6 +328,7 @@ def create_app():
             return jsonify({"ok": False, "error": "该用户名已存在"}), 400
 
         user = create_user(username, password, role, display_name)
+        _log("user_create", "user", f"创建用户: {username} (角色: {role}, 昵称: {display_name})")
         return jsonify({"ok": True, "user": user, "msg": "用户创建成功"}), 201
 
     @app.route("/api/admin/users/<int:uid>", methods=["PUT"])
@@ -313,6 +340,7 @@ def create_app():
             return jsonify({"ok": False, "error": "用户不存在"}), 404
         data = request.get_json() or {}
         updated = update_user(uid, data)
+        _log("user_update", "user", f"更新用户信息: {user['username']} (ID: {uid})")
         return jsonify({"ok": True, "user": updated, "msg": "用户信息已更新"})
 
     @app.route("/api/admin/users/<int:uid>", methods=["DELETE"])
@@ -325,6 +353,7 @@ def create_app():
         if user["username"] == "admin":
             return jsonify({"ok": False, "error": "初始管理员账号不能删除"}), 400
         if delete_user(uid):
+            _log("user_delete", "user", f"删除用户: {user['username']} (ID: {uid})")
             return jsonify({"ok": True, "msg": "用户已删除"})
         return jsonify({"ok": False, "error": "删除失败"}), 500
 
@@ -344,11 +373,131 @@ def create_app():
         data = request.get_json() or {}
         if "allow_registration" in data:
             set_registration_allowed(bool(data["allow_registration"]))
+        _log("system_config", "system", f"修改系统配置: 允许注册={is_registration_allowed()}")
         return jsonify({
             "ok": True,
             "allow_registration": is_registration_allowed(),
             "msg": "系统设置已更新"
         })
+
+    @app.route("/api/admin/logs", methods=["GET"])
+    @require_admin
+    def api_admin_list_logs():
+        from models import list_system_logs
+        user_id_param = request.args.get("user_id")
+        try:
+            target_user_id = int(user_id_param) if user_id_param else None
+        except (ValueError, TypeError):
+            target_user_id = None
+        module = request.args.get("module") or None
+        action = request.args.get("action") or None
+        keyword = request.args.get("keyword") or None
+        try:
+            limit = int(request.args.get("limit", 50))
+        except (ValueError, TypeError):
+            limit = 50
+        try:
+            offset = int(request.args.get("offset", 0))
+        except (ValueError, TypeError):
+            offset = 0
+
+        res = list_system_logs(user_id=target_user_id, module=module, action=action, keyword=keyword, limit=limit, offset=offset)
+        return jsonify({
+            "ok": True,
+            "total": res["total"],
+            "logs": res["logs"],
+            "limit": limit,
+            "offset": offset
+        })
+
+    @app.route("/api/user/logs", methods=["GET"])
+    @require_auth
+    def api_user_list_logs():
+        """普通用户查看自己的个人操作审计日志"""
+        from models import list_system_logs
+        user = getattr(g, "current_user", None)
+        uid = user["id"] if user and isinstance(user, dict) else None
+        if not uid:
+            return jsonify({"ok": False, "error": "无法获取当前用户信息"}), 401
+        module = request.args.get("module") or None
+        action = request.args.get("action") or None
+        keyword = request.args.get("keyword") or None
+        try:
+            limit = int(request.args.get("limit", 50))
+        except (ValueError, TypeError):
+            limit = 50
+        try:
+            offset = int(request.args.get("offset", 0))
+        except (ValueError, TypeError):
+            offset = 0
+
+        res = list_system_logs(user_id=uid, module=module, action=action, keyword=keyword, limit=limit, offset=offset)
+        return jsonify({
+            "ok": True,
+            "total": res["total"],
+            "logs": res["logs"],
+            "limit": limit,
+            "offset": offset
+        })
+
+    @app.route("/api/admin/runtime_logs", methods=["GET"])
+    @require_admin
+    def api_admin_runtime_logs():
+        """获取后端服务实时运行日志 (dayshub.log) 最新 N 行"""
+        import os
+        from config import Config
+        try:
+            lines_count = int(request.args.get("lines", 100))
+        except (ValueError, TypeError):
+            lines_count = 100
+        lines_count = max(10, min(lines_count, 1000))
+
+        log_path = os.path.join(Config.DATA_DIR, "dayshub.log")
+        if not os.path.exists(log_path):
+            return jsonify({
+                "ok": True,
+                "lines": ["(暂无日志文件或日志服务尚未写入)"],
+                "total_lines": 0,
+                "file_size": 0,
+                "path": log_path
+            })
+
+        try:
+            file_size = os.path.getsize(log_path)
+            lines = []
+            with open(log_path, "r", encoding="utf-8", errors="replace") as f:
+                if file_size < 2 * 1024 * 1024:
+                    all_lines = f.readlines()
+                    lines = [ln.rstrip("\r\n") for ln in all_lines[-lines_count:]]
+                else:
+                    f.seek(max(0, file_size - 100 * 1024))
+                    all_lines = f.readlines()
+                    lines = [ln.rstrip("\r\n") for ln in all_lines[-lines_count:]]
+
+            return jsonify({
+                "ok": True,
+                "lines": lines,
+                "returned_count": len(lines),
+                "file_size": file_size,
+                "path": log_path
+            })
+        except Exception as e:
+            return jsonify({"ok": False, "error": f"读取运行日志失败: {e}"}), 500
+
+    @app.route("/api/admin/logs", methods=["DELETE"])
+    @require_admin
+    def api_admin_clear_logs():
+        from models import clear_system_logs
+        data = request.get_json(silent=True) or {}
+        days = data.get("days_to_keep")
+        try:
+            days = int(days) if days is not None else None
+        except (ValueError, TypeError):
+            days = None
+        count = clear_system_logs(days_to_keep=days)
+        _log("clear_logs", "system", f"清理系统日志: 共清除 {count} 条 (保留天数: {days if days else '全部'})")
+        return jsonify({"ok": True, "deleted_count": count, "msg": f"已成功清理 {count} 条日志"})
+
 
     # ========== RESTful API（全部需要认证） ==========
 
@@ -425,14 +574,16 @@ def create_app():
         return jsonify(get_upcoming_events(days))
 
     @app.route("/api/events/<int:eid>/timeline")
+    @app.route("/api/events/<int:eid>/history")
     @require_auth
     def api_event_timeline(eid):
-        """事件历史时间线"""
+        """事件历史时间线与里程碑"""
         ev = get_event(eid)
         if not ev:
             return jsonify({"error": "事件不存在"}), 404
         history = get_event_history(eid)
-        return jsonify({"event": ev, "history": history})
+        milestones = ev.get("milestones", [])
+        return jsonify({"event": ev, "history": history, "milestones": milestones})
 
     @app.route("/api/lunar/<date_str>")
     @require_auth
@@ -551,7 +702,9 @@ def create_app():
     def api_export():
         user = getattr(g, "current_user", None)
         uid = user["id"] if user and user.get("role") != "admin" else None
-        return jsonify(export_data(user_id=uid))
+        res_data = export_data(user_id=uid)
+        _log("export", "event", f"导出数据备份: 共 {len(res_data.get('events', []))} 条事件")
+        return jsonify(res_data)
 
     # ========== RESTful API（写操作需认证） ==========
 
@@ -564,7 +717,10 @@ def create_app():
         cur_user = getattr(g, "current_user", None)
         uid = cur_user["id"] if cur_user else 1
         ev = create_event(data, user_id=uid)
+        if not ev:
+            return jsonify({"error": "创建失败"}), 500
         logger.info(f"事件创建: {ev['title']} (id={ev['id']})")
+        _log("event_create", "event", f"创建事件: {ev['title']} (ID: {ev['id']})")
         from notifier import send_webhook
         send_webhook("event_created", ev)
         return jsonify(ev), 201
@@ -584,6 +740,7 @@ def create_app():
         if not ev:
             return jsonify({"error": "更新失败"}), 500
         logger.info(f"事件更新: {ev['title']} (id={ev['id']})")
+        _log("event_update", "event", f"更新事件: {ev['title']} (ID: {ev['id']})")
         from notifier import send_webhook
         send_webhook("event_updated", ev)
         return jsonify(ev)
@@ -598,8 +755,10 @@ def create_app():
         if user and user.get("role") != "admin":
             if ev_existing.get("user_id") is not None and ev_existing.get("user_id") != user.get("id"):
                 return jsonify({"error": "无权删除其他用户的事件"}), 403
+        ev_title = ev_existing.get("title", f"ID {eid}")
         if delete_event(eid):
             logger.info(f"事件删除: id={eid}")
+            _log("event_delete", "event", f"删除事件: {ev_title} (ID: {eid})")
             from notifier import send_webhook
             send_webhook("event_deleted", {"id": eid})
             return jsonify({"ok": True})
@@ -614,6 +773,7 @@ def create_app():
         uid = user["id"] if user and user.get("role") != "admin" else None
         count = import_data(data, replace, user_id=uid)
         logger.info(f"数据导入: {count} 条 (replace={replace}, user_id={uid})")
+        _log("import", "event", f"导入数据: 共 {count} 条 (覆盖原有={replace})")
         return jsonify({"imported": count})
 
     @app.route("/api/notify/test", methods=["POST"])
@@ -630,7 +790,9 @@ def create_app():
                 msgs.append(f"❌ {channel}: 失败")
             # None = 未配置，不显示
         if not msgs:
+            _log("push_test", "system", "触发测试推送: 未配置任何有效通道", status="fail")
             return jsonify({"ok": False, "msg": "未配置任何推送通道，请先在推送设置中配置"})
+        _log("push_test", "system", f"触发测试推送: {'; '.join(msgs)}", status="ok" if all_ok else "fail")
         if all_ok:
             return jsonify({"ok": True, "msg": "\n".join(msgs)})
         return jsonify({"ok": False, "msg": "\n".join(msgs)}), 500
@@ -640,6 +802,7 @@ def create_app():
     def api_notify_check():
         from notifier import check_and_notify
         check_and_notify()
+        _log("notify_check", "system", "手动触发提醒检查扫描")
         return jsonify({"ok": True, "msg": "提醒检查完成"})
 
     @app.route("/api/backup", methods=["POST"])
@@ -651,7 +814,9 @@ def create_app():
         max_b = int(cfg.get("backup_count", 30))
         res = backup_database(max_backups=max_b)
         if res:
+            _log("backup_create", "system", f"创建数据库热备份: {res.get('filename')}")
             return jsonify({"ok": True, "msg": "全量备份创建完成", "data": res})
+        _log("backup_create", "system", "数据库热备份失败", status="fail")
         return jsonify({"ok": False, "msg": "备份失败"}), 500
 
     @app.route("/api/settings/backup", methods=["GET"])
@@ -666,6 +831,7 @@ def create_app():
         from config import save_backup_config, load_backup_config
         data = request.get_json() or {}
         save_backup_config(data)
+        _log("backup_config", "system", f"修改定时备份策略配置 (保留份数: {data.get('backup_count', 30)}, 时间: {data.get('backup_time', '03:00')})")
         # 动态更新调度器中备份任务的时间
         try:
             from scheduler import reschedule_backup
@@ -740,6 +906,7 @@ def create_app():
         if data.get("smtp_pass") == "******":
             data.pop("smtp_pass")
         save_push_config(data)
+        _log("push_config", "system", "修改系统推送配置")
         new_cfg = load_push_config()
         safe = dict(new_cfg)
         if safe.get("smtp_pass"):
@@ -773,11 +940,14 @@ def create_app():
                     # 如果是 admin 用户，同步全局 API_TOKEN
                     if u_db["username"] == "admin":
                         change_password(old_pass, new_pass)
+                    _log("change_password", "auth", f"用户成功修改密码: {u_db['username']}")
                     return jsonify({"ok": True, "msg": "密码修改成功"})
 
         # 兼容旧逻辑
         if change_password(old_pass, new_pass):
+            _log("change_password", "auth", "管理员通过独立密码模式修改密码成功")
             return jsonify({"ok": True, "msg": "密码修改成功"})
+        _log("change_password", "auth", "修改密码失败(旧密码错误)", status="fail")
         return jsonify({"ok": False, "error": "旧密码错误"}), 401
 
     # ========== iCal 订阅与 Token 管理 ==========
@@ -800,6 +970,7 @@ def create_app():
         return jsonify({"ok": True, "token": new_token, "msg": "专属日历订阅 Token 已重置"})
 
     @app.route("/api/calendar.ics")
+    @app.route("/ical/events.ics")
     def api_ics():
         from config import verify_ical_token
         token = request.headers.get("Authorization", "")

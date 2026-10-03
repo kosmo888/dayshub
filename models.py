@@ -113,6 +113,23 @@ def init_db():
         FOREIGN KEY (event_id) REFERENCES events(id) ON DELETE SET NULL
     );
     CREATE INDEX IF NOT EXISTS idx_event_history_eid ON event_history(event_id);
+
+    CREATE TABLE IF NOT EXISTS system_logs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER,
+        username TEXT DEFAULT '',
+        action TEXT NOT NULL,
+        module TEXT NOT NULL,
+        details TEXT DEFAULT '',
+        ip TEXT DEFAULT '',
+        user_agent TEXT DEFAULT '',
+        status TEXT DEFAULT 'ok',
+        created_at TEXT DEFAULT (datetime('now', 'localtime'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_system_logs_created ON system_logs(created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_system_logs_module ON system_logs(module);
+    CREATE INDEX IF NOT EXISTS idx_system_logs_action ON system_logs(action);
+    CREATE INDEX IF NOT EXISTS idx_system_logs_user ON system_logs(user_id);
     """)
 
     # 迁移：添加 advance_days 列（每个事件单独的提前推送天数，默认3天）
@@ -323,23 +340,28 @@ def create_event(data: dict, user_id: int | None = None) -> dict | None:
     return get_event(eid)
 
 
-def get_event(eid: int) -> dict | None:
-    """获取单个事件"""
+def get_event(eid: int, compute: bool = True) -> dict | None:
+    """获取单个事件（默认包含实时计算的倒计时/累计/农历字符串）"""
     conn = get_db()
     row = conn.execute("SELECT * FROM events WHERE id = ?", (eid,)).fetchone()
     conn.close()
-    return dict(row) if row else None
+    if not row:
+        return None
+    d = dict(row)
+    if compute:
+        return compute_event(d, date.today())
+    return d
 
 
 def list_events(active_only: bool = True, user_id: int | None = None) -> list:
-    """获取事件列表（支持按用户过滤）"""
+    """获取事件列表（严格按用户隔离；user_id 为 None 时查询全量）"""
     conn = get_db()
     conditions = []
     params = []
     if active_only:
         conditions.append("is_active = 1")
     if user_id is not None:
-        conditions.append("(user_id = ? OR user_id IS NULL)")
+        conditions.append("user_id = ?")
         params.append(user_id)
 
     sql = "SELECT * FROM events"
@@ -354,7 +376,7 @@ def list_events(active_only: bool = True, user_id: int | None = None) -> list:
 
 def update_event(eid: int, data: dict) -> dict | None:
     """更新事件"""
-    old_ev = get_event(eid)
+    old_ev = get_event(eid, compute=False)
     conn = get_db()
     fields = []
     vals = []
@@ -371,19 +393,19 @@ def update_event(eid: int, data: dict) -> dict | None:
                 vals.append(v)
     if not fields:
         conn.close()
-        return get_event(eid)
+        return get_event(eid, compute=True)
     fields.append("updated_at = datetime('now', 'localtime')")
     vals.append(eid)
     conn.execute(f"UPDATE events SET {', '.join(fields)} WHERE id = ?", vals)
     _log_history(conn, eid, "updated", old_ev, data)
     conn.commit()
     conn.close()
-    return get_event(eid)
+    return get_event(eid, compute=True)
 
 
 def delete_event(eid: int) -> bool:
     """删除事件（历史记录保留，event_id 被 SET NULL）"""
-    old_ev = get_event(eid)
+    old_ev = get_event(eid, compute=False)
     conn = get_db()
     if old_ev:
         _log_history(conn, eid, "deleted", old_ev, None)
@@ -574,6 +596,7 @@ def get_dashboard_data(base_date: date = None, user_id: int | None = None) -> di
         "accumulate": accumulate_list,
         "recurring": recurring_list,
         "all_events": computed,
+        "events": computed,
         "categories": CATEGORIES,
     }
 
@@ -602,8 +625,8 @@ def export_data(user_id: int | None = None) -> dict:
     return {"events": events, "exported_at": datetime.now().isoformat()}
 
 
-def import_data(data: dict, replace: bool = False, user_id: int | None = None) -> int:
-    """从 JSON 导入数据（支持按用户隔离，避免越权清空其他用户事件）"""
+def import_data(data: dict | list, replace: bool = False, user_id: int | None = None) -> int:
+    """从 JSON 导入数据（支持 {"events": [...]} 和纯列表 [...] 两种格式，并按用户隔离）"""
     target_uid = user_id or 1
     if replace:
         conn = get_db()
@@ -613,8 +636,18 @@ def import_data(data: dict, replace: bool = False, user_id: int | None = None) -
             conn.execute("DELETE FROM events")
         conn.commit()
         conn.close()
+
+    if isinstance(data, list):
+        event_list = data
+    elif isinstance(data, dict):
+        event_list = data.get("events", [])
+    else:
+        event_list = []
+
     count = 0
-    for ev in data.get("events", []):
+    for ev in event_list:
+        if not isinstance(ev, dict):
+            continue
         try:
             ev_copy = dict(ev)
             ev_copy.pop("id", None)
@@ -752,3 +785,80 @@ def get_event_history(eid: int) -> list:
                 pass
         result.append(item)
     return result
+
+
+# ========== 系统操作与审计日志 ==========
+
+def log_system_action(user_id: int | None = None, username: str = "", action: str = "",
+                      module: str = "system", details: str = "", ip: str = "",
+                      user_agent: str = "", status: str = "ok"):
+    """记录一条系统操作/审计日志"""
+    try:
+        conn = get_db()
+        conn.execute(
+            """INSERT INTO system_logs (user_id, username, action, module, details, ip, user_agent, status)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+            (user_id, username or "", action or "unknown", module or "system",
+             details or "", ip or "", (user_agent or "")[:250], status or "ok")
+        )
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        print(f"[LOG ERROR] 记录系统日志失败: {e}")
+
+
+def list_system_logs(user_id: int | None = None, module: str | None = None, action: str | None = None,
+                     keyword: str | None = None, limit: int = 50, offset: int = 0) -> dict:
+    """查询系统操作日志，支持用户、模块、操作、关键字过滤与分页"""
+    conn = get_db()
+    conditions = []
+    params = []
+
+    if user_id is not None:
+        conditions.append("user_id = ?")
+        params.append(user_id)
+    if module:
+        conditions.append("module = ?")
+        params.append(module)
+    if action:
+        conditions.append("action = ?")
+        params.append(action)
+    if keyword:
+        conditions.append("(username LIKE ? OR details LIKE ? OR ip LIKE ?)")
+        kw_pattern = f"%{keyword}%"
+        params.extend([kw_pattern, kw_pattern, kw_pattern])
+
+    where_sql = ("WHERE " + " AND ".join(conditions)) if conditions else ""
+
+    # 获取总数
+    count_row = conn.execute(f"SELECT COUNT(*) AS total FROM system_logs {where_sql}", params).fetchone()
+    total = count_row["total"] if count_row else 0
+
+    # 分页查询
+    query_params = list(params) + [max(1, min(limit, 200)), max(0, offset)]
+    rows = conn.execute(
+        f"SELECT * FROM system_logs {where_sql} ORDER BY id DESC LIMIT ? OFFSET ?",
+        query_params
+    ).fetchall()
+    conn.close()
+
+    return {
+        "total": total,
+        "logs": [dict(r) for r in rows]
+    }
+
+
+def clear_system_logs(days_to_keep: int | None = None) -> int:
+    """清理系统操作日志。若 days_to_keep 指定大于0的整数，则删除N天前日志；否则全部清空"""
+    conn = get_db()
+    if days_to_keep and days_to_keep > 0:
+        cursor = conn.execute(
+            "DELETE FROM system_logs WHERE datetime(created_at) < datetime('now', 'localtime', ?)",
+            (f"-{int(days_to_keep)} days",)
+        )
+    else:
+        cursor = conn.execute("DELETE FROM system_logs")
+    deleted_count = cursor.rowcount
+    conn.commit()
+    conn.close()
+    return deleted_count

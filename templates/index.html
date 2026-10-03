@@ -7,7 +7,7 @@
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23667eea'><rect x='3' y='4' width='18' height='18' rx='4' fill='%23667eea'/><circle cx='8' cy='2' r='1.5' fill='%23fff'/><circle cx='16' cy='2' r='1.5' fill='%23fff'/><rect x='6' y='10' width='12' height='8' rx='2' fill='%23fff'/></svg>">
 <link rel="manifest" href="/manifest.json">
 <meta name="theme-color" content="#667eea">
-<link rel="stylesheet" href="/static/style.css?v=1.6.0">
+<link rel="stylesheet" href="/static/style.css?v=1.7.0">
 </head>
 <body>
 
@@ -311,6 +311,10 @@
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
           用户管理
         </button>
+        <button class="settings-nav-btn admin-only" id="subtabBtnLogs" data-subtab="logs" onclick="switchSettingsTab('logs')" style="display:none;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+          操作日志
+        </button>
       </div>
 
       <div class="modal-body settings-scroll">
@@ -438,6 +442,67 @@
           </div>
         </div>
 
+        <!-- 页面 5: 系统操作与运行日志 -->
+        <div id="subtab-logs" class="settings-page">
+          <div class="channel-group">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; flex-wrap:wrap; gap:8px;">
+              <div style="display:flex; align-items:center; gap:10px;">
+                <h5 class="channel-title" style="margin-bottom:0;" id="logTitleHeader">操作审计日志</h5>
+                <div class="admin-only" id="logModeToggle" style="display:none; background:var(--bg); border:1px solid var(--border); border-radius:6px; padding:2px; font-size:12px;">
+                  <button type="button" id="btnLogModeAudit" class="btn btn-sm" style="padding:2px 8px; font-size:12px; background:var(--primary); color:#fff;" onclick="switchLogMode('audit')">操作审计</button>
+                  <button type="button" id="btnLogModeRuntime" class="btn btn-sm" style="padding:2px 8px; font-size:12px; background:transparent; color:var(--text-muted);" onclick="switchLogMode('runtime')">服务运行日志</button>
+                </div>
+              </div>
+              <div style="display:flex; gap:8px;">
+                <button class="btn btn-secondary btn-sm" onclick="refreshCurrentLogs()">🔄 刷新</button>
+                <button class="btn btn-danger btn-sm admin-only" id="btnClearLogsBtn" onclick="clearSystemLogsPrompt()" style="display:none;">🗑️ 清理日志</button>
+              </div>
+            </div>
+
+            <!-- 视图 A: 操作审计日志 -->
+            <div id="logAuditView">
+              <!-- 日志过滤栏 -->
+              <div class="log-filter-bar" style="display:flex; gap:8px; margin-bottom:12px; flex-wrap:wrap;">
+                <select id="logFilterModule" class="form-input" style="width:auto; padding:4px 8px; font-size:13px;" onchange="loadSystemLogs(1)">
+                  <option value="">全部模块</option>
+                  <option value="auth">认证/登录</option>
+                  <option value="event">事件操作</option>
+                  <option value="user">用户管理</option>
+                  <option value="system">系统/备份</option>
+                </select>
+                <input type="text" id="logKeyword" class="form-input" style="flex:1; min-width:140px; padding:4px 8px; font-size:13px;" placeholder="搜索用户 / 详情 / IP..." onkeydown="if(event.key==='Enter')loadSystemLogs(1)">
+                <button class="btn btn-primary btn-sm" onclick="loadSystemLogs(1)">查询</button>
+              </div>
+
+              <!-- 日志列表展示容器 -->
+              <div id="logListContainer" style="overflow-x:auto;">
+                <p class="modal-desc">加载日志中...</p>
+              </div>
+
+              <!-- 日志分页控制 -->
+              <div id="logPagination" style="display:flex; justify-content:space-between; align-items:center; margin-top:12px; font-size:13px; color:var(--text-muted);">
+              </div>
+            </div>
+
+            <!-- 视图 B: 服务运行日志 (dayshub.log) -->
+            <div id="logRuntimeView" style="display:none;">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; font-size:12px; color:var(--text-muted);">
+                <div style="display:flex; align-items:center; gap:8px;">
+                  <span>显示行数:</span>
+                  <select id="runtimeLogLines" class="form-input" style="width:auto; padding:2px 6px; font-size:12px;" onchange="loadRuntimeLogs()">
+                    <option value="50">最新 50 行</option>
+                    <option value="100" selected>最新 100 行</option>
+                    <option value="200">最新 200 行</option>
+                    <option value="500">最新 500 行</option>
+                  </select>
+                </div>
+                <span id="runtimeLogFileInfo" style="font-family:monospace; font-size:11px;"></span>
+              </div>
+              <pre id="runtimeLogContainer" style="background:#1e1e1e; color:#d4d4d4; padding:12px; border-radius:8px; font-size:11px; font-family:'Menlo', 'Consolas', 'Courier New', monospace; max-height:420px; overflow-y:auto; line-height:1.5; white-space:pre-wrap; word-break:break-all; border:1px solid #333; margin:0;"></pre>
+            </div>
+          </div>
+        </div>
+
         <p id="settingsMsg" class="settings-msg" style="display:none;"></p>
       </div>
     </div>
@@ -529,6 +594,6 @@
   </footer>
 </div>
 
-<script src="/static/app.js?v=1.6.0"></script>
+<script src="/static/app.js?v=1.7.0"></script>
 </body>
 </html>

@@ -742,3 +742,35 @@ body.board-mode .tabs { display: none; }
   font-size: 14px;
   font-weight: 500;
 }
+
+/* 系统操作日志表格与微标签 */
+.log-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  margin-top: 4px;
+}
+.log-table th, .log-table td {
+  padding: 8px 10px;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+.log-table th {
+  color: var(--text-muted);
+  font-weight: 600;
+  font-size: 11px;
+}
+.badge-log-ok {
+  background: rgba(16, 185, 129, 0.15);
+  color: #10b981;
+}
+.badge-log-fail {
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+}
+.badge-log-module {
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+}
