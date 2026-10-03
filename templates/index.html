@@ -299,9 +299,17 @@
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
           推送通知
         </button>
+        <button class="settings-nav-btn" data-subtab="calendar" onclick="switchSettingsTab('calendar')">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+          日历订阅
+        </button>
+        <button class="settings-nav-btn" data-subtab="category" onclick="switchSettingsTab('category')">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path><line x1="7" y1="7" x2="7.01" y2="7"></line></svg>
+          分类管理
+        </button>
         <button class="settings-nav-btn" data-subtab="backup" onclick="switchSettingsTab('backup')">
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
-          数据与备份
+          数据备份
         </button>
         <button class="settings-nav-btn" data-subtab="password" onclick="switchSettingsTab('password')">
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
@@ -360,7 +368,45 @@
           </div>
         </div>
 
-        <!-- 页面 2: 数据与备份 -->
+        <!-- 页面 2: 日历订阅集成 -->
+        <div id="subtab-calendar" class="settings-page">
+          <div class="channel-group">
+            <h5 class="channel-title">iCal 日历订阅源</h5>
+            <p class="modal-desc" style="margin-bottom:12px;">将以下专属链接添加到 Google Calendar / Apple Calendar 即可自动单向同步所有纪念日（独立只读链接，修改管理密码不影响订阅）：</p>
+            <div class="copy-box" style="margin-bottom:12px;">
+              <input type="text" id="settingsCalUrl" class="form-input" readonly placeholder="加载订阅链接中...">
+              <button class="btn btn-primary" onclick="copySettingsCalUrl()">复制链接</button>
+            </div>
+            <div style="display:flex; justify-content:flex-end;">
+              <button class="btn btn-secondary btn-sm" onclick="resetSettingsCalToken()">🔄 重置专属订阅 Token</button>
+            </div>
+          </div>
+
+          <div class="channel-group">
+            <h5 class="channel-title">客户端添加指南</h5>
+            <div class="cal-tips" style="line-height:1.8;">
+              <p><b>📅 Google Calendar：</b>左侧菜单 → 其他日历「+」→ 按网址添加 → 粘贴链接</p>
+              <p><b>🍎 Apple 日历：</b>顶部菜单「文件」→ 新建日历订阅 → 粘贴链接</p>
+              <p><b>📱 iOS / 微信 / 飞书：</b>复制链接后在系统日历中点击「添加订阅日历」即可实时同步</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- 页面 3: 分类管理 -->
+        <div id="subtab-category" class="settings-page">
+          <div class="channel-group">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+              <h5 class="channel-title" style="margin-bottom:0;">自定义事件分类</h5>
+              <button class="btn btn-primary btn-sm" onclick="openAddCategoryModal()">+ 新建分类</button>
+            </div>
+            <p class="modal-desc">您可以随意增删改事件分类，自定义图标和主题色，支持在事件创建时快速选用。</p>
+            <div id="categoryManageContainer" class="cat-manage-grid">
+              <p class="modal-desc">加载分类列表中...</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- 页面 4: 数据与备份 -->
         <div id="subtab-backup" class="settings-page">
           <div class="channel-group">
             <h5 class="channel-title">数据导入与导出</h5>
@@ -386,23 +432,35 @@
           </div>
 
           <div class="channel-group admin-only" id="backupStrategySection" style="display:none;">
-            <h5 class="channel-title">自动备份策略 (管理员)</h5>
-            <div class="form-group">
-              <label class="checkbox-label"><input type="checkbox" id="backupEnabled" checked> 启用每日自动备份</label>
+            <h5 class="channel-title">自定义备份策略 (管理员)</h5>
+            <div class="form-row" style="align-items:center; margin-bottom:12px;">
+              <div class="form-group" style="flex:1;">
+                <label class="checkbox-label" style="font-weight:600;"><input type="checkbox" id="backupEnabled" checked> 启用定时自动备份</label>
+              </div>
+              <div class="form-group" style="flex:1;">
+                <label>备份类型</label>
+                <select id="backupType" class="form-select">
+                  <option value="both">SQLite 数据库 + JSON 全量快照</option>
+                  <option value="db_only">仅 SQLite 数据库 (.db)</option>
+                  <option value="json_only">仅 JSON 数据快照 (.json)</option>
+                </select>
+              </div>
             </div>
             <div class="form-row">
               <div class="form-group" style="flex:1;">
-                <label>每日备份执行时间</label>
-                <input type="text" id="backupTime" class="form-input" placeholder="03:00">
+                <label>每日自动执行时间</label>
+                <input type="time" id="backupTime" class="form-input" value="03:00">
+                <p class="modal-desc" style="font-size:11px; margin-top:2px;">支持任意小时与分钟（24小时制）</p>
               </div>
               <div class="form-group" style="flex:1;">
-                <label>保留份数上限</label>
+                <label>滚动保留快照份数</label>
                 <input type="number" id="backupCount" class="form-input" min="1" max="365" placeholder="30">
+                <p class="modal-desc" style="font-size:11px; margin-top:2px;">超过设定份数自动清理最旧备份</p>
               </div>
             </div>
-            <div style="display:flex; gap:10px; margin-top:8px;">
-              <button class="btn btn-primary" style="flex:1;" onclick="saveBackupSettings()">保存备份策略</button>
-              <button class="btn btn-secondary" style="flex:1;" onclick="manualBackup()">📦 立即创建全量备份</button>
+            <div style="display:flex; gap:10px; margin-top:10px;">
+              <button class="btn btn-primary" style="flex:1;" onclick="saveBackupSettings()">保存自定义策略</button>
+              <button class="btn btn-secondary" style="flex:1;" onclick="manualBackup()">📦 立即创建全量备份快照</button>
             </div>
           </div>
         </div>
@@ -521,6 +579,41 @@
     </div>
   </div>
 
+  <!-- 新增/编辑分类弹窗 -->
+  <div class="modal-overlay" id="categoryModal" style="display:none; z-index:250;">
+    <div class="modal modal-sm">
+      <div class="modal-header">
+        <h3 id="categoryModalTitle">新增事件分类</h3>
+        <button class="modal-close" onclick="document.getElementById('categoryModal').style.display='none'">✕</button>
+      </div>
+      <form id="categoryForm" onsubmit="saveCategorySubmit(event)">
+        <div class="form-group">
+          <label>分类标识 (Slug) *</label>
+          <input type="text" id="catSlug" class="form-input" required placeholder="英文标识，例如 work, fitness, study">
+          <p class="modal-desc" style="font-size:11px; margin-top:2px;">唯一编码，保存后用于事件关联。</p>
+        </div>
+        <div class="form-group">
+          <label>分类名称 *</label>
+          <input type="text" id="catName" class="form-input" required placeholder="显示名称，例如 健身打卡、投资记账">
+        </div>
+        <div class="form-row">
+          <div class="form-group" style="flex:1;">
+            <label>图标 (Emoji)</label>
+            <input type="text" id="catIcon" class="form-input" style="font-size:18px;" placeholder="🏋️" maxlength="4">
+          </div>
+          <div class="form-group" style="flex:1;">
+            <label>主题颜色</label>
+            <input type="color" id="catColor" class="form-input" value="#6366f1" style="height:38px; padding:2px;">
+          </div>
+        </div>
+        <div class="form-actions">
+          <button type="button" class="btn btn-secondary" onclick="document.getElementById('categoryModal').style.display='none'">取消</button>
+          <button type="submit" class="btn btn-primary">保存分类</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <!-- 新增/编辑用户弹窗 -->
   <div class="modal-overlay" id="userModal" style="display:none; z-index:250;">
     <div class="modal modal-sm">
@@ -559,7 +652,7 @@
 
   <!-- 底部精修现代化工具栏 (4个核心入口：日历、设置、主题、退出) -->
   <footer class="footer">
-    <button class="tool-btn" onclick="showCalendarModal()" title="订阅到日历">
+    <button class="tool-btn" onclick="showCalendarFromBottom()" title="日历订阅与同步">
       <svg class="tool-btn-icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
         <line x1="16" y1="2" x2="16" y2="6"></line>

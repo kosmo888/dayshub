@@ -294,6 +294,7 @@ async function loadDashboard() {
     renderHeader();
     renderToday();
     renderTabs();
+    refreshCategorySelects();
   } catch (e) { console.error('加载失败:', e); }
 }
 
@@ -718,22 +719,62 @@ async function deleteCurrentEvent() {
   });
 }
 
-// ========== 日历订阅 ==========
-async function showCalendarModal() {
+// ========== 日历订阅（支持弹窗与设置页内嵌） ==========
+async function getIcalSubscriptionUrl() {
   try {
     const resp = await apiFetch('/api/settings/ical_token');
     const data = await resp.json();
     const token = data.token || '';
-    const url = location.origin + '/api/calendar.ics?token=' + encodeURIComponent(token);
-    document.getElementById('calUrl').value = url;
-    document.getElementById('calModal').style.display = 'flex';
+    return location.origin + '/api/calendar.ics?token=' + encodeURIComponent(token);
   } catch (err) {
-    // 降级使用当前存储的 token
     const token = getToken() || '';
-    const url = location.origin + '/api/calendar.ics?token=' + encodeURIComponent(token);
-    document.getElementById('calUrl').value = url;
-    document.getElementById('calModal').style.display = 'flex';
+    return location.origin + '/api/calendar.ics?token=' + encodeURIComponent(token);
   }
+}
+
+async function showCalendarModal() {
+  const url = await getIcalSubscriptionUrl();
+  const el = document.getElementById('calUrl');
+  if (el) el.value = url;
+  document.getElementById('calModal').style.display = 'flex';
+}
+
+function showCalendarFromBottom() {
+  showSettings();
+  switchSettingsTab('calendar');
+}
+
+async function loadSettingsCalendarView() {
+  const url = await getIcalSubscriptionUrl();
+  const el = document.getElementById('settingsCalUrl');
+  if (el) el.value = url;
+}
+
+function copySettingsCalUrl() {
+  const input = document.getElementById('settingsCalUrl');
+  if (!input || !input.value) return;
+  input.select(); input.setSelectionRange(0, 99999);
+  if (navigator.clipboard) { navigator.clipboard.writeText(input.value); }
+  showToast('✅ 日历订阅链接已复制到剪贴板');
+}
+
+async function resetSettingsCalToken() {
+  showConfirm('确定要重置日历订阅 Token 吗？原订阅链接将立即失效，需要在日历 App 中更新。', async () => {
+    try {
+      const resp = await apiFetch('/api/settings/ical_token/reset', { method: 'POST' });
+      const data = await resp.json();
+      if (data.ok) {
+        const url = location.origin + '/api/calendar.ics?token=' + encodeURIComponent(data.token);
+        const el = document.getElementById('settingsCalUrl');
+        if (el) el.value = url;
+        const calModalInput = document.getElementById('calUrl');
+        if (calModalInput) calModalInput.value = url;
+        showToast('✅ 专属订阅 Token 已重置并更新');
+      }
+    } catch (err) {
+      showToast('❌ 重置失败: ' + err.message);
+    }
+  });
 }
 
 async function resetCalToken() {
@@ -744,10 +785,12 @@ async function resetCalToken() {
       if (data.ok) {
         const url = location.origin + '/api/calendar.ics?token=' + encodeURIComponent(data.token);
         document.getElementById('calUrl').value = url;
-        showConfirm('✅ 订阅 Token 已重置并更新', () => {});
+        const el = document.getElementById('settingsCalUrl');
+        if (el) el.value = url;
+        showToast('✅ 订阅 Token 已重置并更新');
       }
     } catch (err) {
-      showConfirm('重置失败', () => {});
+      showToast('❌ 重置失败: ' + err.message);
     }
   });
 }
@@ -824,6 +867,12 @@ function switchSettingsTab(tabName) {
   const msgEl = document.getElementById('settingsMsg');
   if (msgEl) msgEl.style.display = 'none';
 
+  if (tabName === 'calendar') {
+    loadSettingsCalendarView();
+  }
+  if (tabName === 'category') {
+    loadCategoryManageView();
+  }
   if (tabName === 'users') {
     loadUserList();
   }
@@ -1078,6 +1127,9 @@ function showSettings() {
       document.getElementById('backupEnabled').checked = !!res.config.backup_enabled;
       document.getElementById('backupTime').value = res.config.backup_time || '03:00';
       document.getElementById('backupCount').value = res.config.backup_count || 30;
+      if (document.getElementById('backupType')) {
+        document.getElementById('backupType').value = res.config.backup_type || 'both';
+      }
     }
   }).catch(() => {});
 
@@ -1092,8 +1144,9 @@ function showSettings() {
 async function saveBackupSettings() {
   const data = {
     backup_enabled: document.getElementById('backupEnabled').checked,
-    backup_time: document.getElementById('backupTime').value.trim(),
+    backup_time: document.getElementById('backupTime').value.trim() || '03:00',
     backup_count: parseInt(document.getElementById('backupCount').value) || 30,
+    backup_type: document.getElementById('backupType')?.value || 'both',
   };
   try {
     const resp = await apiFetch('/api/settings/backup', {
@@ -1418,3 +1471,147 @@ function clearSystemLogsPrompt() {
     }
   });
 }
+
+// ========== 分类管理功能与下拉框动态同步 ==========
+function refreshCategorySelects() {
+  const cats = (dashboardData && dashboardData.categories) ? dashboardData.categories : {};
+  const searchSelect = document.getElementById('searchCategory');
+  const evSelect = document.getElementById('evCategory');
+
+  if (searchSelect) {
+    const curVal = searchSelect.value;
+    let html = '<option value="">全部分类</option>';
+    for (const [slug, item] of Object.entries(cats)) {
+      html += `<option value="${escapeHtml(slug)}">${item.icon || '📌'} ${escapeHtml(item.name)}</option>`;
+    }
+    searchSelect.innerHTML = html;
+    if (cats[curVal]) searchSelect.value = curVal;
+  }
+
+  if (evSelect) {
+    const curVal = evSelect.value;
+    let html = '';
+    for (const [slug, item] of Object.entries(cats)) {
+      html += `<option value="${escapeHtml(slug)}">${item.icon || '📌'} ${escapeHtml(item.name)}</option>`;
+    }
+    evSelect.innerHTML = html;
+    if (cats[curVal]) {
+      evSelect.value = curVal;
+    } else if (cats['family']) {
+      evSelect.value = 'family';
+    }
+  }
+}
+
+async function loadCategoryManageView() {
+  const container = document.getElementById('categoryManageContainer');
+  if (!container) return;
+  container.innerHTML = '<p class="modal-desc">加载分类列表中...</p>';
+  try {
+    const resp = await apiFetch('/api/categories');
+    const cats = await resp.json();
+    if (!resp.ok) {
+      container.innerHTML = `<p class="modal-desc" style="color:var(--danger)">加载分类失败</p>`;
+      return;
+    }
+    if (dashboardData) {
+      dashboardData.categories = cats;
+      refreshCategorySelects();
+    }
+    let html = '';
+    for (const [slug, item] of Object.entries(cats)) {
+      const isProtected = (slug === 'other');
+      html += `
+        <div class="cat-item-card">
+          <div class="cat-badge-preview">
+            <span style="font-size:18px;">${item.icon || '📌'}</span>
+            <span style="color:${item.color || 'var(--text)'};">${escapeHtml(item.name)}</span>
+            <span style="font-size:11px; color:var(--text-muted); font-family:monospace;">(${escapeHtml(slug)})</span>
+          </div>
+          <div style="display:flex; gap:6px;">
+            <button class="btn btn-secondary btn-sm" onclick="openEditCategoryModal('${escapeHtml(slug)}')">编辑</button>
+            ${!isProtected ? `<button class="btn btn-danger btn-sm" onclick="deleteCategoryAction('${escapeHtml(slug)}')">删除</button>` : ''}
+          </div>
+        </div>
+      `;
+    }
+    container.innerHTML = html || '<p class="modal-desc">暂无分类</p>';
+  } catch (err) {
+    container.innerHTML = `<p class="modal-desc" style="color:var(--danger)">加载异常: ${err.message}</p>`;
+  }
+}
+
+function openAddCategoryModal() {
+  document.getElementById('categoryModalTitle').textContent = '新增事件分类';
+  const slugInput = document.getElementById('catSlug');
+  slugInput.value = '';
+  slugInput.readOnly = false;
+  document.getElementById('catName').value = '';
+  document.getElementById('catIcon').value = '📌';
+  document.getElementById('catColor').value = '#6366f1';
+  document.getElementById('categoryModal').style.display = 'flex';
+}
+
+function openEditCategoryModal(slug) {
+  const cats = (dashboardData && dashboardData.categories) ? dashboardData.categories : {};
+  const cat = cats[slug] || { name: slug, color: '#6366f1', icon: '📌' };
+  document.getElementById('categoryModalTitle').textContent = `编辑分类: ${cat.name}`;
+  const slugInput = document.getElementById('catSlug');
+  slugInput.value = slug;
+  slugInput.readOnly = true;
+  document.getElementById('catName').value = cat.name;
+  document.getElementById('catIcon').value = cat.icon || '📌';
+  document.getElementById('catColor').value = cat.color || '#6366f1';
+  document.getElementById('categoryModal').style.display = 'flex';
+}
+
+async function saveCategorySubmit(e) {
+  e.preventDefault();
+  const slug = document.getElementById('catSlug').value.trim().toLowerCase();
+  const name = document.getElementById('catName').value.trim();
+  const icon = document.getElementById('catIcon').value.trim() || '📌';
+  const color = document.getElementById('catColor').value || '#6366f1';
+  if (!slug || !name) {
+    showToast('分类标识和名称不能为空', 'error');
+    return;
+  }
+  try {
+    const resp = await apiFetch('/api/categories', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ slug, name, icon, color })
+    });
+    const res = await resp.json();
+    if (resp.ok && res.ok) {
+      showToast(res.msg || '分类已保存');
+      document.getElementById('categoryModal').style.display = 'none';
+      await loadCategoryManageView();
+      await loadDashboard();
+    } else {
+      showToast(res.error || '保存失败', 'error');
+    }
+  } catch (err) {
+    showToast('网络异常: ' + err.message, 'error');
+  }
+}
+
+function deleteCategoryAction(slug) {
+  showConfirm(`确定要删除分类 [${slug}] 吗？\n注意：如果仍有事件归属于此分类，将被系统拒绝。`, async () => {
+    try {
+      const resp = await apiFetch(`/api/categories/${encodeURIComponent(slug)}`, {
+        method: 'DELETE'
+      });
+      const res = await resp.json();
+      if (resp.ok && res.ok) {
+        showToast(res.msg || '分类已删除');
+        await loadCategoryManageView();
+        await loadDashboard();
+      } else {
+        showToast(res.error || '删除失败', 'error');
+      }
+    } catch (err) {
+      showToast('网络错误: ' + err.message, 'error');
+    }
+  });
+}
+

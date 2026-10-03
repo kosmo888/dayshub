@@ -124,16 +124,19 @@ def load_backup_config() -> dict:
         en = str(get_setting("backup_enabled", "true") or "true")
         bt = str(get_setting("backup_time", "03:00") or "03:00")
         bc = int(get_setting("backup_count", "30") or 30)
+        btype = str(get_setting("backup_type", "both") or "both")
         return {
             "backup_enabled": en.lower() == "true",
             "backup_time": bt,
             "backup_count": bc,
+            "backup_type": btype,
         }
     except Exception:
         return {
             "backup_enabled": True,
             "backup_time": "03:00",
             "backup_count": 30,
+            "backup_type": "both",
         }
 
 def save_backup_config(data: dict):
@@ -147,8 +150,10 @@ def save_backup_config(data: dict):
         try:
             cnt = max(1, int(data["backup_count"]))
             set_setting("backup_count", str(cnt))
-        except ValueError:
+        except (ValueError, TypeError):
             pass
+    if "backup_type" in data and data["backup_type"]:
+        set_setting("backup_type", str(data["backup_type"]).strip())
 
 
 # ========== 推送配置（从DB动态读取，覆盖环境变量） ==========

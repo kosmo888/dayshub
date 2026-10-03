@@ -23,8 +23,8 @@ EVENT_TYPES = {
     "monthly": "每月重复",      # 每月重复（如发工资、信用卡还款）
 }
 
-# 分类
-CATEGORIES = {
+# 默认分类字典（兜底）
+DEFAULT_CATEGORIES = {
     "family": {"name": "家庭", "color": "#FF6B6B", "icon": "🏠"},
     "anniversary": {"name": "纪念日", "color": "#FF8E53", "icon": "💝"},
     "work": {"name": "工作/考试", "color": "#4ECDC4", "icon": "💼"},
@@ -33,6 +33,68 @@ CATEGORIES = {
     "holiday": {"name": "节假日", "color": "#F4A261", "icon": "🎉"},
     "other": {"name": "其他", "color": "#B0BEC5", "icon": "📌"},
 }
+CATEGORIES = DEFAULT_CATEGORIES.copy()
+
+
+def get_all_categories() -> dict:
+    """获取所有可用分类（优先从数据库读取自定义分类）"""
+    global CATEGORIES
+    try:
+        conn = get_db()
+        rows = conn.execute("SELECT id, slug, name, color, icon FROM categories ORDER BY sort_order ASC, id ASC").fetchall()
+        conn.close()
+        if rows:
+            res = {}
+            for r in rows:
+                res[r["slug"]] = {
+                    "id": r["id"],
+                    "name": r["name"],
+                    "color": r["color"] or "#6366f1",
+                    "icon": r["icon"] or "📌"
+                }
+            CATEGORIES = res
+            return res
+    except Exception:
+        pass
+    CATEGORIES = DEFAULT_CATEGORIES.copy()
+    return DEFAULT_CATEGORIES
+
+
+def save_category(slug: str, name: str, color: str = "#6366f1", icon: str = "📌", sort_order: int = 0) -> dict:
+    """新增或修改分类"""
+    conn = get_db()
+    conn.execute(
+        """INSERT INTO categories (slug, name, color, icon, sort_order)
+           VALUES (?, ?, ?, ?, ?)
+           ON CONFLICT(slug) DO UPDATE SET
+             name = excluded.name,
+             color = excluded.color,
+             icon = excluded.icon,
+             sort_order = excluded.sort_order""",
+        (slug, name, color, icon, sort_order)
+    )
+    conn.commit()
+    conn.close()
+    return get_all_categories()
+
+
+def delete_category(slug: str) -> tuple[bool, str]:
+    """删除分类（保护内置分类以及被事件引用的分类）"""
+    if slug == "other":
+        return False, "系统默认分类 [other] 不可删除"
+    conn = get_db()
+    # 检查是否有正在使用的事件
+    row = conn.execute("SELECT COUNT(*) AS cnt FROM events WHERE category = ?", (slug,)).fetchone()
+    if row and row["cnt"] > 0:
+        conn.close()
+        return False, f"无法删除：仍有 {row['cnt']} 个事件正在使用该分类，请先修改对应事件分类"
+    cur = conn.execute("DELETE FROM categories WHERE slug = ?", (slug,))
+    deleted = cur.rowcount > 0
+    conn.commit()
+    conn.close()
+    get_all_categories()
+    return deleted, "分类已删除" if deleted else "分类不存在"
+
 
 
 def get_db():
@@ -114,6 +176,16 @@ def init_db():
     );
     CREATE INDEX IF NOT EXISTS idx_event_history_eid ON event_history(event_id);
 
+    CREATE TABLE IF NOT EXISTS categories (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        slug TEXT UNIQUE NOT NULL,
+        name TEXT NOT NULL,
+        color TEXT DEFAULT '#6366f1',
+        icon TEXT DEFAULT '📌',
+        sort_order INTEGER DEFAULT 0,
+        created_at TEXT DEFAULT (datetime('now', 'localtime'))
+    );
+
     CREATE TABLE IF NOT EXISTS system_logs (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         user_id INTEGER,
@@ -149,9 +221,27 @@ def init_db():
     # 默认初始化内置管理员用户
     _seed_default_admin(conn)
 
+    # 默认初始化系统分类表
+    _seed_default_categories(conn)
+
     conn.commit()
     conn.close()
     print(f"[DB] 初始化完成: {Config.DB_PATH}")
+
+
+def _seed_default_categories(conn):
+    """初始化预置默认分类"""
+    cnt = conn.execute("SELECT COUNT(*) AS c FROM categories").fetchone()["c"]
+    if cnt == 0:
+        order = 0
+        for slug, info in DEFAULT_CATEGORIES.items():
+            conn.execute(
+                "INSERT INTO categories (slug, name, color, icon, sort_order) VALUES (?, ?, ?, ?, ?)",
+                (slug, info["name"], info["color"], info["icon"], order)
+            )
+            order += 1
+        conn.commit()
+
 
 
 # ========== 用户与认证模型 ==========
@@ -433,7 +523,8 @@ def compute_event(ev: dict, base_date: date = None) -> dict:
         base_date = date.today()
 
     ev_date = date.fromisoformat(ev["date"])
-    ev["category_info"] = CATEGORIES.get(ev["category"], CATEGORIES["other"])
+    all_cats = get_all_categories()
+    ev["category_info"] = all_cats.get(ev["category"], all_cats.get("other", {"name": ev["category"], "color": "#6366f1", "icon": "📌"}))
     ev["color"] = ev["color"] or ev["category_info"]["color"]
     ev["icon"] = ev["icon"] or ev["category_info"]["icon"]
 
@@ -597,7 +688,7 @@ def get_dashboard_data(base_date: date = None, user_id: int | None = None) -> di
         "recurring": recurring_list,
         "all_events": computed,
         "events": computed,
-        "categories": CATEGORIES,
+        "categories": get_all_categories(),
     }
 
 
@@ -658,8 +749,8 @@ def import_data(data: dict | list, replace: bool = False, user_id: int | None = 
     return count
 
 
-def backup_database(max_backups: int = 30) -> dict | None:
-    """自动备份数据库和 JSON 导出文件至 data/backup 目录，保留最近 N 份备份"""
+def backup_database(max_backups: int = 30, backup_type: str = "both") -> dict | None:
+    """自动备份数据库和 JSON 导出文件至 data/backup 目录，支持自定义备份类型与保留份数"""
     import shutil
     import glob
     backup_dir = os.path.join(Config.DATA_DIR, "backup")
@@ -669,20 +760,22 @@ def backup_database(max_backups: int = 30) -> dict | None:
     json_backup_path = os.path.join(backup_dir, f"dayshub_{ts}.json")
 
     try:
-        # 1. 备份 SQLite 文件 (使用 VACUUM INTO 或安全拷贝)
-        if os.path.exists(Config.DB_PATH):
-            conn = get_db()
-            try:
-                conn.execute(f"VACUUM INTO '{db_backup_path}'")
-            except Exception:
-                shutil.copy2(Config.DB_PATH, db_backup_path)
-            finally:
-                conn.close()
+        # 1. 备份 SQLite 文件
+        if backup_type in ("both", "db_only"):
+            if os.path.exists(Config.DB_PATH):
+                conn = get_db()
+                try:
+                    conn.execute(f"VACUUM INTO '{db_backup_path}'")
+                except Exception:
+                    shutil.copy2(Config.DB_PATH, db_backup_path)
+                finally:
+                    conn.close()
 
         # 2. 备份 JSON
-        data = export_data()
-        with open(json_backup_path, "w", encoding="utf-8") as f:
-            json.dump(data, f, ensure_ascii=False, indent=2)
+        if backup_type in ("both", "json_only"):
+            data = export_data()
+            with open(json_backup_path, "w", encoding="utf-8") as f:
+                json.dump(data, f, ensure_ascii=False, indent=2)
 
         # 3. 轮转清理旧备份
         db_files = sorted(glob.glob(os.path.join(backup_dir, "dayshub_*.db")))
@@ -690,13 +783,22 @@ def backup_database(max_backups: int = 30) -> dict | None:
             for old_f in db_files[:-max_backups]:
                 try:
                     os.remove(old_f)
-                    json_f = old_f.replace(".db", ".json")
-                    if os.path.exists(json_f):
-                        os.remove(json_f)
+                except Exception:
+                    pass
+        json_files = sorted(glob.glob(os.path.join(backup_dir, "dayshub_*.json")))
+        if len(json_files) > max_backups:
+            for old_f in json_files[:-max_backups]:
+                try:
+                    os.remove(old_f)
                 except Exception:
                     pass
 
-        return {"status": "ok", "db": db_backup_path, "json": json_backup_path}
+        return {
+            "status": "ok",
+            "db": db_backup_path if backup_type in ("both", "db_only") else None,
+            "json": json_backup_path if backup_type in ("both", "json_only") else None,
+            "filename": f"dayshub_{ts}"
+        }
     except Exception as e:
         print(f"[BACKUP] 备份失败: {e}")
         return None

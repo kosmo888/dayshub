@@ -5,7 +5,7 @@ DaysHub iCal 日历生成器
 - 支持 Google Calendar / Apple Calendar 订阅
 """
 from datetime import date, timedelta
-from models import list_events, CATEGORIES
+from models import list_events, get_all_categories
 from lunar_engine import get_next_lunar_birthday, lunar_to_solar
 from config import Config
 
@@ -29,9 +29,10 @@ def generate_ics(years_ahead: int = 3, user_id: int | None = None) -> str:
         "X-WR-TIMEZONE:Asia/Shanghai",
     ]
 
+    all_cats = get_all_categories()
     for ev in events:
         title = ev["title"]
-        cat_info = CATEGORIES.get(ev["category"], CATEGORIES["other"])
+        cat_info = all_cats.get(ev["category"], all_cats.get("other", {"name": "其他", "color": "#6366f1", "icon": "📌"}))
         color = ev["color"] or cat_info["color"]
         icon = ev["icon"] or cat_info["icon"]
         note = ev["note"] or ""

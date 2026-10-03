@@ -143,7 +143,8 @@ def api_backup():
     from config import load_backup_config
     cfg = load_backup_config()
     max_b = int(cfg.get("backup_count", 30))
-    res = backup_database(max_backups=max_b)
+    btype = str(cfg.get("backup_type", "both"))
+    res = backup_database(max_backups=max_b, backup_type=btype)
     if res:
         log_action("backup_create", "system", f"创建数据库热备份: {res.get('filename')}")
         return jsonify({"ok": True, "msg": "全量备份创建完成", "data": res})

@@ -566,38 +566,54 @@ form { padding: 16px 20px; }
 .cal-actions { text-align: right; margin-bottom: 14px; }
 .cal-tips { font-size: 12px; color: var(--text-secondary); line-height: 1.7; background: var(--bg); padding: 12px; border-radius: var(--radius-sm); }
 
-/* 设置页多选项卡与分页布局 */
+/* 设置页多选项卡与分页布局 — 响应式宽屏优化 */
 .modal-settings {
-  max-width: 520px;
+  max-width: 860px;
+  width: 94vw;
+  border-radius: 20px;
 }
 .settings-nav {
   display: flex;
-  gap: 6px;
-  padding: 12px 20px 0;
+  gap: 8px;
+  padding: 14px 24px 0;
   border-bottom: 1px solid var(--border);
   background: var(--card-bg);
+  overflow-x: auto;
+  white-space: nowrap;
+}
+.settings-nav::-webkit-scrollbar {
+  height: 4px;
+}
+.settings-nav::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 4px;
 }
 .settings-nav-btn {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 8px 14px;
+  gap: 7px;
+  padding: 9px 16px;
   border: none;
   background: transparent;
   color: var(--text-secondary);
-  font-size: 13px;
+  font-size: 13.5px;
   font-weight: 500;
   border-bottom: 2px solid transparent;
   cursor: pointer;
   transition: all .18s ease;
+  border-radius: 6px 6px 0 0;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 .settings-nav-btn:hover {
   color: var(--accent);
+  background: rgba(99, 102, 241, 0.05);
 }
 .settings-nav-btn.active {
   color: var(--accent);
   border-bottom-color: var(--accent);
   font-weight: 700;
+  background: rgba(99, 102, 241, 0.08);
 }
 .settings-page {
   display: none;
@@ -610,12 +626,39 @@ form { padding: 16px 20px; }
   from { opacity: 0; transform: translateY(4px); }
   to { opacity: 1; transform: translateY(0); }
 }
-.settings-scroll { max-height: 64vh; overflow-y: auto; padding: 18px 20px; }
-.channel-group { background: var(--bg); padding: 14px; border-radius: var(--radius-sm); margin-bottom: 14px; }
-.channel-title { font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 10px; }
-.settings-actions { display: flex; gap: 10px; margin-top: 16px; }
-.settings-divider { margin: 18px 0; border-top: 1px solid var(--border); }
-.settings-msg { text-align: center; margin-top: 14px; font-size: 13px; font-weight: 600; }
+.settings-scroll {
+  max-height: 72vh;
+  overflow-y: auto;
+  padding: 22px 24px;
+}
+.channel-group {
+  background: var(--bg);
+  padding: 18px 20px;
+  border-radius: var(--radius-sm);
+  margin-bottom: 16px;
+  border: 1px solid var(--border);
+}
+.channel-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 12px;
+}
+.settings-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 18px;
+}
+.settings-divider {
+  margin: 20px 0;
+  border-top: 1px solid var(--border);
+}
+.settings-msg {
+  text-align: center;
+  margin-top: 14px;
+  font-size: 13px;
+  font-weight: 600;
+}
 
 /* 用户管理表格 */
 .user-table {
@@ -746,20 +789,34 @@ body.board-mode .tabs { display: none; }
 /* 系统操作日志表格与微标签 */
 .log-table {
   width: 100%;
-  border-collapse: collapse;
-  font-size: 12px;
-  margin-top: 4px;
+  min-width: 680px;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 12.5px;
+  margin-top: 6px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
 }
 .log-table th, .log-table td {
-  padding: 8px 10px;
+  padding: 10px 14px;
   text-align: left;
   border-bottom: 1px solid var(--border);
-  vertical-align: top;
+  vertical-align: middle;
 }
 .log-table th {
+  background: var(--bg-card);
   color: var(--text-muted);
   font-weight: 600;
-  font-size: 11px;
+  font-size: 11.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.log-table tr:last-child td {
+  border-bottom: none;
+}
+.log-table tr:hover td {
+  background: rgba(99, 102, 241, 0.03);
 }
 .badge-log-ok {
   background: rgba(16, 185, 129, 0.15);
@@ -770,7 +827,59 @@ body.board-mode .tabs { display: none; }
   color: #ef4444;
 }
 .badge-log-module {
-  background: var(--bg-card);
-  color: var(--text-secondary);
+  background: var(--card-bg);
+  color: var(--text);
   border: 1px solid var(--border);
+  font-weight: 600;
 }
+
+/* 优雅细滚动条 */
+.settings-scroll::-webkit-scrollbar,
+#logListContainer::-webkit-scrollbar,
+#runtimeLogContainer::-webkit-scrollbar,
+#backupFileListContainer::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+.settings-scroll::-webkit-scrollbar-thumb,
+#logListContainer::-webkit-scrollbar-thumb,
+#runtimeLogContainer::-webkit-scrollbar-thumb,
+#backupFileListContainer::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.35);
+  border-radius: 4px;
+}
+.settings-scroll::-webkit-scrollbar-track,
+#logListContainer::-webkit-scrollbar-track,
+#runtimeLogContainer::-webkit-scrollbar-track,
+#backupFileListContainer::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* 分类管理卡片布局 */
+.cat-manage-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 12px;
+  margin-top: 10px;
+}
+.cat-item-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  transition: border-color .15s;
+}
+.cat-item-card:hover {
+  border-color: var(--accent);
+}
+.cat-badge-preview {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+  font-size: 13px;
+}
+

@@ -10,7 +10,7 @@ from logger import logger
 from models import (
     create_event, get_event, list_events, update_event, delete_event,
     compute_event, get_upcoming_events, get_event_history,
-    export_data, import_data, CATEGORIES
+    export_data, import_data, get_all_categories, save_category, delete_category
 )
 
 events_bp = Blueprint("events", __name__)
@@ -72,8 +72,42 @@ def api_event_timeline(eid):
 @events_bp.route("/api/categories", methods=["GET"])
 @require_auth
 def api_categories():
-    """获取事件分类字典"""
-    return jsonify(CATEGORIES)
+    """获取所有可用分类字典"""
+    return jsonify(get_all_categories())
+
+
+@events_bp.route("/api/categories", methods=["POST", "PUT"])
+@require_auth
+def api_save_category():
+    """新增或修改分类"""
+    data = request.get_json() or {}
+    slug = str(data.get("slug", "")).strip().lower()
+    name = str(data.get("name", "")).strip()
+    color = str(data.get("color", "#6366f1")).strip()
+    icon = str(data.get("icon", "📌")).strip()
+    try:
+        sort_order = int(data.get("sort_order", 0))
+    except (ValueError, TypeError):
+        sort_order = 0
+
+    if not slug or not name:
+        return jsonify({"ok": False, "error": "分类标识(slug)和显示名称不能为空"}), 400
+
+    cats = save_category(slug, name, color, icon, sort_order)
+    log_action("category_save", "category", f"保存分类: {name} ({slug})")
+    return jsonify({"ok": True, "categories": cats, "msg": f"分类「{name}」已保存"})
+
+
+@events_bp.route("/api/categories/<slug>", methods=["DELETE"])
+@require_auth
+def api_delete_category(slug):
+    """删除分类"""
+    slug = str(slug).strip().lower()
+    ok, msg = delete_category(slug)
+    if not ok:
+        return jsonify({"ok": False, "error": msg}), 400
+    log_action("category_delete", "category", f"删除分类: {slug}")
+    return jsonify({"ok": True, "categories": get_all_categories(), "msg": msg})
 
 
 @events_bp.route("/api/export", methods=["GET"])
