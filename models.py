@@ -441,10 +441,11 @@ def compute_event(ev: dict, base_date: date = None) -> dict:
         if ev["lunar_month"] and ev["lunar_day"]:
             next_d = get_next_lunar_birthday(
                 ev["lunar_month"], ev["lunar_day"],
-                bool(ev["is_leap"]), base_date
+                bool(ev.get("is_leap")), base_date
             )
             ev["next_date"] = next_d.isoformat() if next_d else None
-            ev["lunar_str"] = f"农历{ev['lunar_month']}月{ev['lunar_day']}日"
+            leap_str = "闰" if ev.get("is_leap") else ""
+            ev["lunar_str"] = f"农历{leap_str}{ev['lunar_month']}月{ev['lunar_day']}日"
         else:
             # 公历循环
             next_d = _next_solar_anniversary(ev_date, base_date)
@@ -531,7 +532,7 @@ def get_upcoming_events(days: int = 7, base_date: date = None, user_id: int | No
         dr = ev.get("days_remaining")
         if dr is not None and 0 <= dr <= days:
             upcoming.append(ev)
-    upcoming.sort(key=lambda x: x.get("days_remaining", 9999))
+    upcoming.sort(key=lambda x: 9999 if x.get("days_remaining") is None else x["days_remaining"])
     return upcoming
 
 
@@ -553,9 +554,9 @@ def get_dashboard_data(base_date: date = None, user_id: int | None = None) -> di
     recurring_list = [e for e in computed if e["event_type"] in ("recurring", "monthly") or e["is_recurring"]]
 
     # 排序
-    countdown_list.sort(key=lambda x: (not x["is_pinned"], x.get("days_remaining", 9999)))
-    recurring_list.sort(key=lambda x: (not x["is_pinned"], x.get("days_remaining", 9999)))
-    accumulate_list.sort(key=lambda x: (not x["is_pinned"], -x.get("days_passed", 0)))
+    countdown_list.sort(key=lambda x: (not x["is_pinned"], 9999 if x.get("days_remaining") is None else x["days_remaining"]))
+    recurring_list.sort(key=lambda x: (not x["is_pinned"], 9999 if x.get("days_remaining") is None else x["days_remaining"]))
+    accumulate_list.sort(key=lambda x: (not x["is_pinned"], -(0 if x.get("days_passed") is None else x["days_passed"])))
 
     # 今日
     today_events = [e for e in computed if e.get("is_today")]

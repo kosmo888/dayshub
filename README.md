@@ -1,7 +1,7 @@
-# 📅 DaysHub · 时光看板 v1.5.0
+# 📅 DaysHub · 时光看板 v1.6.0
 
 > 农历 + 公历双轨倒数日 / 纪念日 / 累计日管理中心
-> Docker 一键部署 · 用户自主注册与多用户权限 · 独立反代支持 (127.0.0.1) · 独立 iCal 订阅 · Waitress 生产 WSGI
+> Docker 一键部署 · 农历闰月精准适配 · 桌面小组件接口 · 用户注册与隔离 · 独立 iCal 订阅 · Waitress 生产 WSGI
 
 ## ✨ 功能一览
 
@@ -126,6 +126,7 @@ server {
 | PUT | `/api/events/:id` | 登录用户 | 更新事件 |
 | DELETE | `/api/events/:id` | 登录用户 | 删除事件 |
 | GET | `/api/calendar.ics` | 独立 Token | iCal 只读订阅源 |
+| GET | `/api/widget/summary` | 独立 Token | 专属极简小组件接口 (iOS Scriptable/Widgy/桌面挂件) |
 | GET | `/api/settings/backup` | 登录用户 | 获取自动备份配置 |
 | PUT | `/api/settings/backup` | 登录用户 | 保存自动备份配置（热重载调度） |
 | POST | `/api/backup` | 登录用户 | 立即创建全量备份 |
@@ -172,6 +173,12 @@ dayshub/
 - Docker 多阶段构建
 
 ## 📝 Changelog
+
+### v1.6.0 (农历闰月适配与小组件接口)
+- 🌙 **农历“闰月”明确标识与双向联动**：表单新增“闰月”勾选框，公农历换算精准支持闰月，卡片清晰展示“农历闰X月Y日”
+- 📱 **专属极简小组件接口 (`/api/widget/summary`)**：面向 iOS Scriptable、Widgy、Android 桌面小组件提供轻量、精炼、结构化 JSON 数据流
+- 🔒 **多用户安全隔离闭环**：导入导出与日历订阅流彻底隔离，修复普通用户越权清库隐患
+- 📅 **每月重复事件上线**：支持创建发薪日、还款日等每月固定周期事件
 
 ### v1.5.0 (用户自主注册系统)
 - ✨ **用户自主注册**：登录界面集成注册入口，支持访客自主创建专属账号

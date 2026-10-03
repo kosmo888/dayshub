@@ -1,4 +1,4 @@
-/* DaysHub 时光看板 — 前端逻辑 v1.3.0 */
+/* DaysHub 时光看板 — 前端逻辑 v1.6.0 */
 let dashboardData = null;
 let currentTab = 'all';
 let searchResults = null;
@@ -543,6 +543,7 @@ function openAddModal() {
   document.getElementById('evAdvanceDays').value = 3;
   document.getElementById('lunarInputs').style.display = 'none';
   document.getElementById('evIsLunar').checked = false;
+  document.getElementById('evIsLeap').checked = false;
   document.getElementById('btnDelete').style.display = 'none';
   document.getElementById('modalOverlay').style.display = 'flex';
   onSolarDateChange();
@@ -567,9 +568,11 @@ async function editEvent(id) {
     document.getElementById('lunarInputs').style.display = 'block';
     document.getElementById('evLunarMonth').value = ev.lunar_month;
     document.getElementById('evLunarDay').value = ev.lunar_day;
+    document.getElementById('evIsLeap').checked = !!ev.is_leap;
     onLunarChange();
   } else {
     document.getElementById('evIsLunar').checked = false;
+    document.getElementById('evIsLeap').checked = false;
     document.getElementById('lunarInputs').style.display = 'none';
     onSolarDateChange();
   }
@@ -602,6 +605,7 @@ async function onSolarDateChange() {
       _syncing = true;
       document.getElementById('evLunarMonth').value = data.lunar_month;
       document.getElementById('evLunarDay').value = data.lunar_day;
+      document.getElementById('evIsLeap').checked = !!data.is_leap;
       _syncing = false;
     }
   } catch (err) {}
@@ -611,11 +615,12 @@ async function onLunarChange() {
   if (_syncing) return;
   const month = parseInt(document.getElementById('evLunarMonth').value);
   const day = parseInt(document.getElementById('evLunarDay').value);
+  const isLeap = document.getElementById('evIsLeap').checked;
   const dateStr = document.getElementById('evDate').value;
   if (!dateStr) return;
   const year = new Date(dateStr).getFullYear();
   try {
-    const resp = await apiFetch(`/api/lunar_to_solar/${year}/${month}/${day}`);
+    const resp = await apiFetch(`/api/lunar_to_solar/${year}/${month}/${day}?is_leap=${isLeap ? 1 : 0}`);
     const data = await resp.json();
     if (data.date) {
       _syncing = true;
@@ -641,10 +646,12 @@ async function saveEvent(e) {
   if (isLunar) {
     data.lunar_month = parseInt(document.getElementById('evLunarMonth').value);
     data.lunar_day = parseInt(document.getElementById('evLunarDay').value);
+    data.is_leap = document.getElementById('evIsLeap').checked ? 1 : 0;
     data.is_recurring = 1;
     data.event_type = 'recurring';
     try {
-      const resp = await apiFetch(`/api/lunar_to_solar/${new Date(data.date).getFullYear()}/${data.lunar_month}/${data.lunar_day}`);
+      const isLeap = data.is_leap ? 1 : 0;
+      const resp = await apiFetch(`/api/lunar_to_solar/${new Date(data.date).getFullYear()}/${data.lunar_month}/${data.lunar_day}?is_leap=${isLeap}`);
       const result = await resp.json();
       if (result.date) data.date = result.date;
     } catch (err) {}
@@ -653,7 +660,7 @@ async function saveEvent(e) {
     data.lunar_month = null;
     data.lunar_day = null;
     data.is_leap = 0;
-    data.is_recurring = (data.event_type === 'recurring') ? 1 : 0;
+    data.is_recurring = (data.event_type === 'recurring' || data.event_type === 'monthly') ? 1 : 0;
   }
   const url = id ? `/api/events/${id}` : '/api/events';
   const method = id ? 'PUT' : 'POST';

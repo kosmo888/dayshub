@@ -182,6 +182,32 @@ def test_registration_toggle_and_logic():
     assert is_registration_allowed() is True
 
 
+def test_lunar_leap_month():
+    # 2025年有闰六月 (农历2025年闰六月初一)
+    # 验证带 is_leap=True 的转换
+    solar_leap = lunar_to_solar(2025, 6, 1, is_leap=True)
+    solar_normal = lunar_to_solar(2025, 6, 1, is_leap=False)
+    assert solar_leap != solar_normal, "闰月公历应与普通月公历不同"
+
+    # 验证 compute_event 对闰月事件的标识
+    from models import compute_event
+    test_ev = {
+        "title": "闰月生日测试",
+        "date": "2025-07-25",
+        "lunar_month": 6,
+        "lunar_day": 1,
+        "is_leap": 1,
+        "is_recurring": 1,
+        "event_type": "recurring",
+        "category": "family",
+        "color": "",
+        "icon": "",
+        "is_pinned": 0
+    }
+    c_ev = compute_event(test_ev, date(2025, 1, 1))
+    assert "农历闰6月1日" in c_ev.get("lunar_str", "")
+
+
 if __name__ == "__main__":
     test_lunar_conversion()
     test_lunar_small_month_tolerance()
@@ -193,4 +219,5 @@ if __name__ == "__main__":
     test_backup_config_and_logic()
     test_multi_user_lifecycle()
     test_registration_toggle_and_logic()
+    test_lunar_leap_month()
     print("✅ 全部 pytest 测试用例本地执行通过！")

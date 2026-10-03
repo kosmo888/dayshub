@@ -444,10 +444,97 @@ def create_app():
     @require_auth
     def api_l2s(year, month, day):
         try:
-            solar = lunar_to_solar(year, month, day)
+            is_leap = request.args.get("is_leap", "0") in ("1", "true", "True")
+            solar = lunar_to_solar(year, month, day, is_leap=is_leap)
             return jsonify({"date": solar.isoformat()})
         except Exception as e:
             return jsonify({"error": str(e)}), 400
+
+    @app.route("/api/widget/summary")
+    @require_auth
+    def api_widget_summary():
+        """专属极简小组件接口 (适配 iOS Scriptable / Widgy / 桌面卡片)"""
+        user = getattr(g, "current_user", None)
+        uid = user["id"] if user and user.get("role") != "admin" else None
+        base = date.today()
+        dash = get_dashboard_data(base, user_id=uid)
+
+        weekday_map = ["一", "二", "三", "四", "五", "六", "日"]
+        weekday_str = f"星期{weekday_map[base.weekday()]}"
+
+        today_evs = [
+            {"id": e["id"], "title": e["title"], "icon": e.get("icon") or "🎉", "note": e.get("note", ""), "category": e.get("category")}
+            for e in dash.get("today_events", [])
+        ]
+
+        upcoming = dash.get("countdown", []) + dash.get("recurring", [])
+        valid_upcoming = [e for e in upcoming if e.get("days_remaining") is not None and e.get("days_remaining") >= 0]
+        valid_upcoming.sort(key=lambda x: (not x.get("is_pinned"), 9999 if x.get("days_remaining") is None else x["days_remaining"]))
+
+        next_ev = None
+        if valid_upcoming:
+            ne = valid_upcoming[0]
+            next_ev = {
+                "id": ne["id"],
+                "title": ne["title"],
+                "days": ne.get("days_remaining"),
+                "direction": "countdown",
+                "sub": ne.get("lunar_str") or ne.get("next_date") or ne.get("date"),
+                "date": ne.get("next_date") or ne.get("date"),
+                "icon": ne.get("icon") or "⏳",
+                "category": ne.get("category"),
+                "is_pinned": bool(ne.get("is_pinned"))
+            }
+
+        top_list = []
+        for e in valid_upcoming[:5]:
+            top_list.append({
+                "id": e["id"],
+                "title": e["title"],
+                "days": e.get("days_remaining"),
+                "direction": "countdown",
+                "sub": e.get("lunar_str") or e.get("next_date") or e.get("date"),
+                "icon": e.get("icon") or "⏳",
+                "is_pinned": bool(e.get("is_pinned"))
+            })
+
+        accumulate_list = dash.get("accumulate", [])
+        accum_top = None
+        if accumulate_list:
+            ae = accumulate_list[0]
+            accum_top = {
+                "id": ae["id"],
+                "title": ae["title"],
+                "days_passed": ae.get("days_passed", 0),
+                "next_milestone": ae.get("next_milestone"),
+                "icon": ae.get("icon") or "📈"
+            }
+
+        res = {
+            "ok": True,
+            "date": base.isoformat(),
+            "weekday": weekday_str,
+            "lunar": dash["lunar"]["chinese_str"],
+            "shengxiao": dash["shengxiao"],
+            "ganzhi": dash["ganzhi"],
+            "solar_term": dash["solar_term"],
+            "progress": {
+                "year_percent": dash["year_progress"]["percent"],
+                "year_remaining_days": dash["year_progress"]["remaining"],
+                "month_percent": dash["month_progress"]["percent"],
+                "month_remaining_days": dash["month_progress"]["remaining"]
+            },
+            "today_count": len(today_evs),
+            "today_events": today_evs,
+            "next_event": next_ev,
+            "top_events": top_list,
+            "accumulate_highlight": accum_top,
+            "user": {
+                "username": user.get("username", "admin") if user else "admin",
+                "display_name": user.get("display_name", "") if user else ""
+            }
+        }
+        return jsonify(res)
 
     @app.route("/api/progress")
     @require_auth

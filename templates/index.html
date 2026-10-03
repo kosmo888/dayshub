@@ -7,7 +7,7 @@
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23667eea'><rect x='3' y='4' width='18' height='18' rx='4' fill='%23667eea'/><circle cx='8' cy='2' r='1.5' fill='%23fff'/><circle cx='16' cy='2' r='1.5' fill='%23fff'/><rect x='6' y='10' width='12' height='8' rx='2' fill='%23fff'/></svg>">
 <link rel="manifest" href="/manifest.json">
 <meta name="theme-color" content="#667eea">
-<link rel="stylesheet" href="/static/style.css?v=1.5.0">
+<link rel="stylesheet" href="/static/style.css?v=1.6.0">
 </head>
 <body>
 
@@ -200,8 +200,8 @@
             <input type="checkbox" id="evIsLunar" onchange="toggleLunar()"> 使用农历（每年按农历循环）
           </label>
           <div id="lunarInputs" style="display:none; margin-top:8px;">
-            <div class="form-row">
-              <div class="form-group" style="flex:1">
+            <div class="form-row" style="align-items: flex-end;">
+              <div class="form-group" style="flex:2">
                 <label>农历月</label>
                 <select id="evLunarMonth" class="form-select" onchange="onLunarChange()">
                   <option value="1">正月</option><option value="2">二月</option>
@@ -212,12 +212,17 @@
                   <option value="11">冬月</option><option value="12">腊月</option>
                 </select>
               </div>
-              <div class="form-group" style="flex:1">
+              <div class="form-group" style="flex:1; margin-bottom: 14px;">
+                <label class="checkbox-label" style="height:38px; display:flex; align-items:center;">
+                  <input type="checkbox" id="evIsLeap" onchange="onLunarChange()"> 闰月
+                </label>
+              </div>
+              <div class="form-group" style="flex:2">
                 <label>农历日</label>
                 <select id="evLunarDay" class="form-select" onchange="onLunarChange()">
                   <option value="1">初一</option><option value="2">初二</option>
                   <option value="3">初三</option><option value="4">初四</option>
-                  <option value="5">五月</option><option value="6">初六</option>
+                  <option value="5">初五</option><option value="6">初六</option>
                   <option value="7">初七</option><option value="8">初八</option>
                   <option value="9">初九</option><option value="10">初十</option>
                   <option value="11">十一</option><option value="12">十二</option>
@@ -524,6 +529,6 @@
   </footer>
 </div>
 
-<script src="/static/app.js?v=1.5.0"></script>
+<script src="/static/app.js?v=1.6.0"></script>
 </body>
 </html>
