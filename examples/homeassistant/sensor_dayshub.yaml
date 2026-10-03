@@ -1,0 +1,62 @@
+# ==============================================================================
+# DaysHub · 时光看板 Home Assistant REST 传感器配置包 v2.0.0
+# 
+# 复制以下配置并添加到你的 Home Assistant 的 configuration.yaml 中
+# 记得替换 resource 里的 IP/端口 以及 token 值为你的 DaysHub 实际参数
+# ==============================================================================
+
+rest:
+  - resource: "http://100.64.0.5:5217/api/widget/summary?token=lwd199592"
+    scan_interval: 1800 # 每 30 分钟同步一次
+    sensor:
+      # 1. 农历与生肖节气传感器
+      - name: "DaysHub 农历信息"
+        unique_id: dayshub_lunar_info
+        value_template: "{{ value_json.lunar }}"
+        icon: mdi:calendar-chinese
+        json_attributes:
+          - date
+          - weekday
+          - shengxiao
+          - ganzhi
+          - solar_term
+
+      # 2. 年度流逝进度传感器
+      - name: "DaysHub 年进度"
+        unique_id: dayshub_year_progress
+        value_template: "{{ value_json.progress.year_percent }}"
+        unit_of_measurement: "%"
+        icon: mdi:progress-clock
+        json_attributes_path: "$.progress"
+        json_attributes:
+          - year_percent
+          - year_remaining_days
+          - month_percent
+          - month_remaining_days
+
+      # 3. 下一个焦点倒数日
+      - name: "DaysHub 下一个事件"
+        unique_id: dayshub_next_event
+        value_template: >-
+          {% if value_json.next_event is defined and value_json.next_event %}
+            {{ value_json.next_event.title }}
+          {% else %}
+            暂无近期事件
+          {% endif %}
+        icon: mdi:alarm
+        json_attributes_path: "$.next_event"
+        json_attributes:
+          - title
+          - days
+          - date
+          - sub
+          - icon
+          - category
+
+      # 4. 今日纪念日/到期事件数
+      - name: "DaysHub 今日到期数"
+        unique_id: dayshub_today_count
+        value_template: "{{ value_json.today_count | default(0) }}"
+        icon: mdi:calendar-star
+        json_attributes:
+          - today_events

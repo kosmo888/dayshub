@@ -1,0 +1,29 @@
+{
+  "version": "2.0.0",
+  "description": "中国传统二十四节气预设数据包",
+  "events": [
+    {"title": "立春", "event_type": "recurring", "category": "holiday", "date": "2026-02-04", "is_recurring": 1, "note": "东风解冻，春回大地", "icon": "🌱", "color": "#10b981", "advance_days": 1},
+    {"title": "雨水", "event_type": "recurring", "category": "holiday", "date": "2026-02-19", "is_recurring": 1, "note": "降雨开始，雨量渐增", "icon": "🌧️", "color": "#10b981", "advance_days": 1},
+    {"title": "惊蛰", "event_type": "recurring", "category": "holiday", "date": "2026-03-05", "is_recurring": 1, "note": "春雷乍动，万物生机", "icon": "⚡", "color": "#10b981", "advance_days": 1},
+    {"title": "春分", "event_type": "recurring", "category": "holiday", "date": "2026-03-20", "is_recurring": 1, "note": "昼夜均分，春意盎然", "icon": "🌸", "color": "#10b981", "advance_days": 1},
+    {"title": "谷雨", "event_type": "recurring", "category": "holiday", "date": "2026-04-20", "is_recurring": 1, "note": "雨生百谷，春季收尾", "icon": "🌾", "color": "#10b981", "advance_days": 1},
+    {"title": "立夏", "event_type": "recurring", "category": "holiday", "date": "2026-05-05", "is_recurring": 1, "note": "万物生长，夏日始来", "icon": "☀️", "color": "#f59e0b", "advance_days": 1},
+    {"title": "小满", "event_type": "recurring", "category": "holiday", "date": "2026-05-21", "is_recurring": 1, "note": "麦类渐满，尚未成熟", "icon": "🌿", "color": "#f59e0b", "advance_days": 1},
+    {"title": "芒种", "event_type": "recurring", "category": "holiday", "date": "2026-06-05", "is_recurring": 1, "note": "有芒之谷，连夜抢收", "icon": "🌾", "color": "#f59e0b", "advance_days": 1},
+    {"title": "夏至", "event_type": "recurring", "category": "holiday", "date": "2026-06-21", "is_recurring": 1, "note": "日北至，日长之至", "icon": "🌞", "color": "#f59e0b", "advance_days": 1},
+    {"title": "小暑", "event_type": "recurring", "category": "holiday", "date": "2026-07-07", "is_recurring": 1, "note": "温风忽至，小暑始热", "icon": "🍧", "color": "#f59e0b", "advance_days": 1},
+    {"title": "大暑", "event_type": "recurring", "category": "holiday", "date": "2026-07-22", "is_recurring": 1, "note": "一年最热，伏天正浓", "icon": "🔥", "color": "#f59e0b", "advance_days": 1},
+    {"title": "立秋", "event_type": "recurring", "category": "holiday", "date": "2026-08-07", "is_recurring": 1, "note": "凉风至，白露降，寒蝉鸣", "icon": "🍁", "color": "#d97706", "advance_days": 1},
+    {"title": "处暑", "event_type": "recurring", "category": "holiday", "date": "2026-08-23", "is_recurring": 1, "note": "出暑解热，秋意渐起", "icon": "🍂", "color": "#d97706", "advance_days": 1},
+    {"title": "白露", "event_type": "recurring", "category": "holiday", "date": "2026-09-07", "is_recurring": 1, "note": "白露凝秋，鸿雁南飞", "icon": "💧", "color": "#d97706", "advance_days": 1},
+    {"title": "秋分", "event_type": "recurring", "category": "holiday", "date": "2026-09-23", "is_recurring": 1, "note": "雷始收声，平分秋色", "icon": "🌾", "color": "#d97706", "advance_days": 1},
+    {"title": "寒露", "event_type": "recurring", "category": "holiday", "date": "2026-10-08", "is_recurring": 1, "note": "露气寒冷，将凝结也", "icon": "❄️", "color": "#0284c7", "advance_days": 1},
+    {"title": "霜降", "event_type": "recurring", "category": "holiday", "date": "2026-10-23", "is_recurring": 1, "note": "秋将逝，气肃而凝", "icon": "🍂", "color": "#0284c7", "advance_days": 1},
+    {"title": "立冬", "event_type": "recurring", "category": "holiday", "date": "2026-11-07", "is_recurring": 1, "note": "水始冰，地始冻", "icon": "🌨️", "color": "#3b82f6", "advance_days": 1},
+    {"title": "小雪", "event_type": "recurring", "category": "holiday", "date": "2026-11-22", "is_recurring": 1, "note": "气寒而将雪，地寒未甚", "icon": "❄️", "color": "#3b82f6", "advance_days": 1},
+    {"title": "大雪", "event_type": "recurring", "category": "holiday", "date": "2026-12-07", "is_recurring": 1, "note": "至此而雪盛，积阴为雪", "icon": "⛄", "color": "#3b82f6", "advance_days": 1},
+    {"title": "冬至", "event_type": "recurring", "category": "holiday", "date": "2026-12-21", "is_recurring": 1, "note": "日南之至，阳气始萌", "icon": "🥟", "color": "#3b82f6", "advance_days": 1},
+    {"title": "小寒", "event_type": "recurring", "category": "holiday", "date": "2026-01-05", "is_recurring": 1, "note": "冷气积久而寒，尚未大冷", "icon": "🧊", "color": "#6366f1", "advance_days": 1},
+    {"title": "大寒", "event_type": "recurring", "category": "holiday", "date": "2026-01-20", "is_recurring": 1, "note": "寒气之逆极，坚冰深处春水生", "icon": "🥶", "color": "#6366f1", "advance_days": 1}
+  ]
+}

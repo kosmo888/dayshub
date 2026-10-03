@@ -1,0 +1,44 @@
+# ==============================================================================
+# DaysHub · 时光看板 Home Assistant 仪表盘卡片配置示例 v2.0.0
+#
+# 在 Home Assistant 概览视图中点击右上角「编辑仪表盘」->「添加卡片」
+# 滑动到底部选择「手动配置 (Manual)」卡片，将以下代码粘贴保存即可
+# ==============================================================================
+
+type: vertical-stack
+title: 📅 时光与纪念日中枢
+cards:
+  # 顶部日期与时间进度总览
+  - type: markdown
+    content: >-
+      ## {{ states('sensor.dayshub_nong_li_xin_xi') }}
+      
+      **公历**: {{ state_attr('sensor.dayshub_nong_li_xin_xi', 'date') }} ({{ state_attr('sensor.dayshub_nong_li_xin_xi', 'weekday') }})  
+      **干支**: {{ state_attr('sensor.dayshub_nong_li_xin_xi', 'ganzhi') }}年【属{{ state_attr('sensor.dayshub_nong_li_xin_xi', 'shengxiao') }}】
+      {% if state_attr('sensor.dayshub_nong_li_xin_xi', 'solar_term') %}
+      · 节气: **{{ state_attr('sensor.dayshub_nong_li_xin_xi', 'solar_term') }}**
+      {% endif %}
+
+      ---
+      ⏳ **年进度**: {{ states('sensor.dayshub_nian_jin_du') }}% (剩余 {{ state_attr('sensor.dayshub_nian_jin_du', 'year_remaining_days') }} 天)  
+      🌙 **月进度**: {{ state_attr('sensor.dayshub_nian_jin_du', 'month_percent') }}% (剩余 {{ state_attr('sensor.dayshub_nian_jin_du', 'month_remaining_days') }} 天)
+
+  # 下一个焦点倒数日卡片
+  - type: entity
+    entity: sensor.dayshub_xia_yi_ge_shi_jian
+    name: 下一个重要日子
+    icon: mdi:calendar-clock
+    secondary_info: last-updated
+
+  # 今日到期特别提醒 (仅在今天有事件时展示)
+  - type: conditional
+    conditions:
+      - entity: sensor.dayshub_jin_ri_dao_qi_shu
+        state_not: "0"
+    card:
+      type: markdown
+      title: 🎉 今日专属纪念
+      content: >-
+        {% for ev in state_attr('sensor.dayshub_jin_ri_dao_qi_shu', 'today_events') %}
+        - {{ ev.icon }} **{{ ev.title }}** {% if ev.age is defined and ev.age %}（第 {{ ev.age }} 周年/岁）{% endif %}
+        {% endfor %}

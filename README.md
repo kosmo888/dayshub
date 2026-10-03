@@ -1,243 +1,196 @@
-# 📅 DaysHub · 时光看板 v1.7.0
+# 📅 DaysHub · 时光看板 v2.0.0
 
-> 农历 + 公历双轨倒数日 / 纪念日 / 累计日管理中心
-> Docker 一键部署 · 农历闰月精准适配 · 桌面小组件接口 · 用户注册与隔离 · 独立 iCal 订阅 · Waitress 生产 WSGI
+[English](README_EN.md) | **简体中文**
 
-## ✨ 功能一览
+[![Release](https://img.shields.io/badge/release-v2.0.0-6366f1.svg?style=flat-square)](https://github.com/kosmo888/dayshub)
+[![Python](https://img.shields.io/badge/python-3.12-blue.svg?style=flat-square)](https://www.python.org/)
+[![Docker](https://img.shields.io/badge/docker-ready-2496ed.svg?style=flat-square)](https://www.docker.com/)
+[![Tests](https://img.shields.io/badge/tests-37%2F37%20passing-success.svg?style=flat-square)](tests/)
+[![License](https://img.shields.io/badge/license-MIT-green.svg?style=flat-square)](LICENSE)
 
-| 模块 | 功能 |
-|:---|:---|
-| **用户与权限** | **用户自主注册（支持开关）、多用户数据隔离、管理员与普通用户角色分离、用户管理面板、PBKDF2 安全哈希** |
-| **日期引擎** | 公历/农历双向换算、小月30日平滑容错、倒数日、累计日、100/1000天里程碑、年/月进度条、24节气(2024-2035)、生肖天干地支 |
-| **事件管理** | 7大分类、备注备忘、置顶、搜索防抖(250ms)、事件历史时间线、Web端增删改查、**每事件单独提前提醒天数(默认3天)**、农历/公历状态彻底解耦 |
-| **通知推送** | 企业微信Webhook、SMTP邮件(HTML+纯文本回退)、TelegramBot、通用自定义Webhook、推送失败重试与实时反馈 |
-| **认证与安全** | **全站登录/注册页**、**登录防爆破(5次失败锁定10分钟)**、**iCal 独立只读 Token(与主密码解耦)**、PBKDF2-SHA256 安全哈希 |
-| **设置中心** | **多选项卡分页设置面板**(推送通知 / 数据与备份 / 安全密码 / 用户管理)、自动备份策略可配、修改密码 |
-| **日历集成** | iCal 独立订阅链接一键导入 Google/Apple Calendar、农历自动转公历、全设备安全同步 |
-| **现代前端** | 纯单色矢量 SVG 导航栏、毛玻璃悬浮交互、轻量 Toast 提示、暗色模式、PWA 原生支持(添加到主屏幕) |
-| **部署与反代** | **默认绑定 127.0.0.1:5217 (便于 Nginx/1Panel/Caddy 等直接反向代理)**、Waitress 多线程生产 WSGI、HEALTHCHECK |
+> **农历 + 公历双轨倒数日 / 纪念日 / 累计日时光中枢**  
+> 专为极客家庭、自托管玩家打造。支持农历闰月双向换算、iOS/Android 极简小组件、Home Assistant 智能家居中枢、多用户强数据隔离、双通道操作审计流水与 Waitress 高性能多线程生产驱动。
 
-## 🏗️ 架构
+---
+
+## ✨ 核心特性与套件生态
+
+| 核心套件 | 详细功能说明 |
+| :--- | :--- |
+| **🌙 双轨农历引擎** | 支持中国传统农历与公历双轨并行；**独创闰月精准识别与双向联动**（表单自适应闰月、换算 API 带 `is_leap`、卡片高亮标注“农历闰X月Y日”）；支持小月 30 日平滑容错、生肖干支、24 节气实时解析。 |
+| **📱 极简小组件生态** | 开箱即用提供 `/api/widget/summary` 极简 JSON 接口；配套开源 **iOS Scriptable 原生桌面小组件源码**（支持 Small/Medium 尺寸与深浅色模式）及 **Widgy 配置规范**，秒级打造手机桌面时光卡片。 |
+| **🏠 Home Assistant 中控** | 专属智能家居集成套件；提供 RESTful 传感器声明与 Lovelace 仪表盘卡片 YAML，家庭中控平板、墙面屏或桌面墨水屏直接常驻展示倒数日与年/月流逝进度。 |
+| **📋 双通道日志系统** | **通道 A**：全链路业务操作审计流水（登录/登出、注册、事件增删改、系统配置变更、数据导入备份）；<br>**通道 B**：后端服务实时运行日志（`data/dayshub.log` 自动 5MB 轮转，后台支持免 SSH 直接调阅最新输出）。 |
+| **🔒 多用户与安全防御** | 支持管理员与普通用户角色分离；访客自主注册策略控制；事件与个人操作流水**物理级隔离**；密码强 PBKDF2-SHA256 哈希存储；登录接口集成 IP 防暴力破解频控（5次失败锁定10分钟）；免密 iCal 独立只读 Token。 |
+| **🏮 传统节日预置包** | 内置中国传统主要农历节日（春节、元宵、端午、中秋、重阳、小年、除夕等）与二十四节气标准数据包，支持网页端一键增量或全量导入。 |
+| **⚙️ 生产级微架构** | **基于 Flask Blueprint 模块化解耦重构**（auth, events, widget, admin, system）；内置 Waitress 多线程生产 WSGI；支持 SQLite 在线热快照备份与一键下载。 |
+
+---
+
+## 🏗️ 系统微架构
 
 ```
-┌──────────────────────────────────────────────────┐
-│                  DaysHub v1.2.0                  │
-├────────────┬────────────┬───────────┬────────────┤
-│  日期引擎   │  事件管理   │  推送中心  │  认证/设置  │
-├────────────┼────────────┼───────────┼────────────┤
-│ lunar_engine│  models    │ notifier  │  config    │
-│ ·公历农历   │ ·SQLite    │ ·企微Webhook│ ·密码认证  │
-│ ·24节气     │ ·CRUD      │ ·SMTP邮件 │ ·密码修改  │
-│ ·里程碑     │ ·历史记录   │ ·TG Bot   │ ·推送配置  │
-│ ·进度条     │ ·搜索筛选   │ ·通用Webhook│           │
-│ ·生肖干支   │ ·事件提醒   │ ·重试+告警 │            │
-├────────────┴────────────┴───────────┴────────────┤
-│            Flask (app.py) + APScheduler          │
-├──────────────────────────────────────────────────┤
-│     Docker (多阶段构建 + HEALTHCHECK) · 5217     │
-└──────────────────────────────────────────────────┘
+┌────────────────────────────────────────────────────────────────────────┐
+│                        DaysHub v2.0.0 架构全景                         │
+├───────────────────┬───────────────────┬────────────────────────────────┤
+│    认证与用户     │    事件与历史     │         小组件与数据流         │
+│  blueprints/auth  │ blueprints/events │       blueprints/widget        │
+│  · 自主注册/登录   │  · 事件全生命CRUD │  · /api/widget/summary 极简接口│
+│  · PBKDF2-SHA256  │  · 搜索防抖/分类  │  · 看板主页数据聚合/今日信息   │
+│  · 个人资料与改密 │  · 导入导出/里程碑│  · 年/月流逝进度条计算         │
+├───────────────────┼───────────────────┼────────────────────────────────┤
+│    后台与审计     │    系统与外设     │            基础引擎            │
+│  blueprints/admin │ blueprints/system │      lunar_engine / models     │
+│  · 多用户管控面板 │  · 企微/邮件/TG推 │  · 农历闰月算法/小月平滑容错   │
+│  · 审计多维过滤   │  · iCal 订阅生成  │  · SQLite WAL + 自动热备份     │
+│  · 运行日志实时看 │  · 在线备份下载   │  · APScheduler 提醒巡检        │
+├───────────────────┴───────────────────┴────────────────────────────────┤
+│            Waitress 多线程生产级 WSGI (Python 3.12-slim)               │
+├────────────────────────────────────────────────────────────────────────┤
+│     Docker 容器化 (端口 5217 · 支持 Tailscale 内网穿透与外网反代)      │
+└────────────────────────────────────────────────────────────────────────┘
 ```
 
-## 🚀 Docker 部署
+---
 
+## 🚀 快速启动 (Docker 一键部署)
+
+### 推荐：Docker Compose
 ```bash
-# 1. 克隆
-git clone https://github.com/YOUR_USERNAME/dayshub.git
+# 1. 克隆代码仓库
+git clone https://github.com/kosmo888/dayshub.git
 cd dayshub
 
-# 2. 配置密码（创建 .env）
+# 2. 复制并调整环境变量 (可选设置你的独立端口或密钥)
 cat > .env << 'EOF'
-DAYSHUB_SECRET_KEY=your-random-secret-key
-DAYSHUB_API_TOKEN=your-password
+DAYSHUB_SECRET_KEY=dayshub-prod-secret-2026
+DAYSHUB_API_TOKEN=your-admin-password
 DAYSHUB_TZ=Asia/Shanghai
-DAYSHUB_BASE_URL=http://localhost:5217
+DAYSHUB_PORT=5217
 EOF
 
-# 3. 启动
+# 3. 启动生产容器
 docker compose up -d
 
-# 4. 访问
-# http://localhost:5217
-# 输入你设置的 DAYSHUB_API_TOKEN 作为密码
+# 4. 访问服务
+# 局域网/Tailscale: http://<你的IP>:5217/
+# 默认初始管理员账号: admin，密码为你设置的 DAYSHUB_API_TOKEN
 ```
 
-## 🔒 认证机制
+---
 
-- **全站密码认证**：未登录看不到任何内容，所有 API 均需密码
-- 密码保存在浏览器 localStorage，有效期一年
-- 底栏 🚪 退出 按钮可清除密码回到登录页
-- **WebUI 内修改密码**：设置 → 修改密码（验证旧密码后设置新密码，存 DB）
-- 登录端点 `POST /api/login` 验证密码并返回 token
-- 所有 API 请求需在 Header 中携带 `Authorization: Bearer <密码>` 或 iCal 订阅用 `?token=<密码>`
+## 📱 桌面小组件与智能中控生态
 
-## 🔔 推送设置
+DaysHub 专为移动端与智能家居生态提供了完整的现成配置模板，位于 [`examples/`](examples/) 目录：
 
-所有推送通道在 **WebUI 设置页面** 配置，保存到数据库，无需重启：
+### 1. iOS Scriptable 极简桌面小组件
+* 源码文件：[`examples/widgets/dayshub_scriptable.js`](examples/widgets/dayshub_scriptable.js)
+* 安装指南：[`examples/widgets/README.md`](examples/widgets/README.md)
+* 特性：支持 iPhone / iPad 桌面 Small 与 Medium 尺寸，自适应深浅色模式，显示农历、年进度及下一焦点事件。
 
-| 通道 | 配置项 |
-|:---|:---|
-| 企业微信 | Webhook URL |
-| 邮件 SMTP | 主机/端口/账号/密码/发件人/收件人/SSL |
-| Telegram | Bot Token / Chat ID |
+### 2. Home Assistant 智能家居集成
+* 传感器配置：[`examples/homeassistant/sensor_dayshub.yaml`](examples/homeassistant/sensor_dayshub.yaml)
+* 仪表盘卡片：[`examples/homeassistant/lovelace_card.yaml`](examples/homeassistant/lovelace_card.yaml)
+* 接入指南：[`examples/homeassistant/README.md`](examples/homeassistant/README.md)
 
-- **每事件单独提前提醒**：创建/编辑事件时可设置"提前提醒天数"，默认 3 天
-- 设置页面的「测试推送」按钮可验证各通道是否正常，返回各通道成功/失败状态
-- 提醒消息格式：分隔线 + emoji + 农历/公历双显示
+### 3. 中国传统节日与二十四节气预置包
+* 传统主要农历节日：[`examples/presets/chinese_traditional_holidays.json`](examples/presets/chinese_traditional_holidays.json)
+* 二十四节气数据包：[`examples/presets/chinese_solar_terms.json`](examples/presets/chinese_solar_terms.json)
+* 使用方式：进入 DaysHub 设置 ➔ 数据与备份 ➔ 导入数据，选中 JSON 文件即可一键灌入。
 
-## 📅 Google Calendar 订阅
+---
 
-1. 登录 DaysHub → 底部点击「📅 日历」
-2. 复制订阅链接（已自动附带密码参数）
-3. Google Calendar → 左侧「其他日历 +」→「通过网址添加」→ 粘贴链接
-4. 农历生日/纪念日自动转公历，全设备同步
+## 🔌 API 核心端点速查
 
-## 🌐 Nginx 反向代理配置参考
+| 蓝图模块 | 请求方法 | 接口路径 | 鉴权级别 | 说明 |
+| :--- | :---: | :---| :---: | :---|
+| **Auth** | `POST` | `/api/login` | 公开 | 用户密码登录并颁发专属 Token |
+| **Auth** | `POST` | `/api/register` | 公开 (受控) | 访客自主注册新账号 |
+| **Auth** | `POST` | `/api/logout` | 登录用户 | 安全退出登录并记录审计日志 |
+| **Auth** | `GET` | `/api/user/profile` | 登录用户 | 获取当前登录用户画像与角色 |
+| **Auth** | `PUT` | `/api/settings/password` | 登录用户 | 修改当前用户密码 |
+| **Widget** | `GET` | `/api/widget/summary` | Token (Header/Query) | **桌面小组件专属一站式极简 JSON 接口** |
+| **Widget** | `GET` | `/api/dashboard` | 登录用户 | 看板主数据（倒数、累计、重复、进度） |
+| **Widget** | `GET` | `/api/today` | 登录用户 | 今日到期事件与日历状态 |
+| **Widget** | `GET` | `/api/progress` | 登录用户 | 年月流逝百分比与剩余天数 |
+| **Widget** | `GET` | `/api/lunar_to_solar/:y/:m/:d` | 登录用户 | 农历转公历（带 `?is_leap=1` 闰月支持） |
+| **Events** | `GET` | `/api/events` | 登录用户 | 事件列表（严格多用户数据隔离） |
+| **Events** | `POST` | `/api/events` | 登录用户 | 创建倒计时 / 累计日 / 周期事件 |
+| **Events** | `PUT` | `/api/events/:id` | 登录用户 | 更新事件（属性、置顶、提前提醒等） |
+| **Events** | `DELETE`| `/api/events/:id` | 登录用户 | 删除事件（防越权拦截） |
+| **Events** | `GET` | `/api/events/:id/timeline` | 登录用户 | 查询事件时间线与百日/千日里程碑 |
+| **Events** | `GET` | `/api/export` | 登录用户 | 导出当前用户名下所有事件 JSON |
+| **Events** | `POST` | `/api/import` | 登录用户 | 导入事件（支持纯列表与标准结构） |
+| **Admin** | `GET` | `/api/admin/users` | 管理员 | 系统全量用户列表 |
+| **Admin** | `PUT` | `/api/admin/system` | 管理员 | 控制是否允许访客自主注册 |
+| **Admin** | `GET` | `/api/admin/logs` | 管理员 | **系统全量审计流水（支持模块/关键字过滤）** |
+| **Admin** | `GET` | `/api/user/logs` | 登录用户 | **普通用户个人操作审计日志** |
+| **Admin** | `GET` | `/api/admin/runtime_logs` | 管理员 | **后端服务运行日志实时抽取 (dayshub.log)** |
+| **System**| `POST` | `/api/backup` | 登录用户 | 触发数据库热快照与 JSON 导出备份 |
+| **System**| `GET` | `/api/backup/download/:file`| 管理员 | 下载历史备份快照文件 |
+| **System**| `GET` | `/api/calendar.ics` | 独立 Token | 标准 RFC-5545 iCal 订阅源 |
 
-由于 DaysHub 默认绑定本机 `127.0.0.1:5217`，可直接在宿主机 Nginx / 1Panel / OpenResty 中添加反代配置：
+---
 
-```nginx
-server {
-    listen 80;
-    server_name days.yourdomain.com;
+## 📁 目录结构
 
-    location / {
-        proxy_pass http://127.0.0.1:5217;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-}
-```
-
-## 🔌 API 速查
-
-| 方法 | 路径 | 权限 | 说明 |
-|:---|:---|:---:|:---|
-| POST | `/api/login` | 公开 | 用户名密码登录 / Token 颁发 |
-| GET | `/api/user/profile` | 登录用户 | 获取当前登录用户信息 |
-| GET | `/api/admin/users` | 管理员 | 用户列表管理 |
-| POST | `/api/admin/users` | 管理员 | 创建新系统用户 |
-| PUT | `/api/admin/users/:id` | 管理员 | 修改用户信息 / 重置密码 |
-| DELETE | `/api/admin/users/:id` | 管理员 | 删除指定用户 |
-| GET | `/api/dashboard` | 登录用户 | 完整看板数据 |
-| GET | `/api/events` | 登录用户 | 事件列表 |
-| POST | `/api/events` | 登录用户 | 创建事件 |
-| PUT | `/api/events/:id` | 登录用户 | 更新事件 |
-| DELETE | `/api/events/:id` | 登录用户 | 删除事件 |
-| GET | `/api/calendar.ics` | 独立 Token | iCal 只读订阅源 |
-| GET | `/api/widget/summary` | 独立 Token | 专属极简小组件接口 (iOS Scriptable/Widgy/桌面挂件) |
-| GET | `/api/settings/backup` | 登录用户 | 获取自动备份配置 |
-| PUT | `/api/settings/backup` | 登录用户 | 保存自动备份配置（热重载调度） |
-| POST | `/api/backup` | 登录用户 | 立即创建全量备份 |
-| GET | `/api/settings/push` | 登录用户 | 获取推送设置 |
-| PUT | `/api/settings/push` | 登录用户 | 保存推送设置 |
-| PUT | `/api/settings/password` | 登录用户 | 用户修改密码 |
-| GET | `/health` | 公开 | 健康检查（Waitress 状态） |
-
-> 所有 API 除 `/api/login` 和 `/health` 外均需密码认证。
-
-## 📁 项目结构
-
-```
+```text
 dayshub/
-├── app.py              # Flask主应用 (路由+认证+API)
-├── config.py           # 配置 + 推送配置DB读写 + 密码修改
-├── lunar_engine.py     # 农历引擎 (换算+节气+里程碑+进度)
-├── models.py           # SQLite CRUD + 事件历史 + advance_days
-├── calendar_gen.py     # iCal生成器
-├── notifier.py         # 推送 (企微+邮件+TG+Webhook+重试+测试)
-├── scheduler.py        # 定时任务 (每小时提醒检查)
-├── logger.py           # 日志框架
-├── requirements.txt
-├── Dockerfile          # 多阶段构建 + tzdata + HEALTHCHECK
-├── docker-compose.yml
-├── .dockerignore
-├── .gitignore
-├── LICENSE             # MIT
-├── examples/
-│   └── sample-events.json
+├── app.py                     # Flask 应用工厂入口 (轻量化初始化与调度挂载)
+├── auth_middleware.py         # 认证中间件、管理员守门器与审计日志记录器
+├── config.py                  # 系统配置与环境变量映射
+├── lunar_engine.py            # 农历核心引擎 (双向转换、节气、生肖、里程碑)
+├── models.py                  # SQLite 数据模型与 CRUD
+├── calendar_gen.py            # RFC-5545 iCal 日历订阅流生成器
+├── notifier.py                # 多通道通知中心 (企业微信、SMTP、Telegram、Webhook)
+├── scheduler.py               # APScheduler 定时任务引擎
+├── logger.py                  # 双通道日志轮转处理器 (data/dayshub.log)
+├── blueprints/                # 模块化解耦业务蓝图
+│   ├── __init__.py
+│   ├── auth.py                # 登录、注册、鉴权、个人资料
+│   ├── events.py              # 事件管理 CRUD、导入导出
+│   ├── widget.py              # 极简小组件、聚合看板、农历转换
+│   ├── admin.py               # 用户管理、审计日志、服务日志
+│   └── system.py              # 页面入口、推送测试、备份下载、iCal
+├── examples/                  # 生态套件包
+│   ├── sample-events.json     # 示例数据
+│   ├── widgets/               # 桌面小组件源码 (iOS Scriptable 脚本)
+│   ├── homeassistant/         # 智能家居配置 (REST 传感器与 Lovelace 卡片)
+│   └── presets/               # 节日与二十四节气预置数据包
 ├── templates/
-│   └── index.html      # WebUI (登录页+看板+设置页)
+│   └── index.html             # 现代化单页看板与多选项卡管理面板
 ├── static/
-│   ├── style.css
-│   └── app.js
-└── data/               # SQLite数据库（运行时生成）
+│   ├── style.css              # 现代极简 CSS 变量规范
+│   └── app.js                 # 原生 JavaScript (0 第三方框架依赖)
+├── tests/                     # 自动化测试套件 (37 项 E2E 测试全覆盖)
+│   ├── test_dayshub.py        # 算法与数据模型单元测试
+│   └── test_e2e_full.py       # 全系统链路集成验收测试
+├── Dockerfile                 # 多阶段精简镜像构建
+└── docker-compose.yml         # 容器编排定义
 ```
 
-## 🏗️ 技术栈
+---
 
-- Python 3.12 + Flask 3.0 + SQLite + APScheduler
-- zhdate (农历) + requests (推送)
-- 原生 HTML/CSS/JS (无框架)
-- Docker 多阶段构建
+## 📝 版本更新历史 (Changelog)
 
-## 📝 Changelog
+### v2.0.0 (架构微服务化与生态扩展套件)
+- 🚀 **微架构蓝图模块化**：将单体路由全面重构解耦为 Flask Blueprint（auth, events, widget, admin, system），大幅提升工程健壮性与可维护性；
+- 📱 **iOS Scriptable 桌面小组件包**：开源首发开箱即用的 Scriptable 脚本（支持小号/中号卡片、深浅色模式）；
+- 🏠 **Home Assistant 智能家居中枢支持**：提供 REST 传感器及 Lovelace 仪表盘配置包，支持家庭中控大屏与桌面副屏；
+- 🏮 **传统农历节日与二十四节气预置包**：内置主要传统农历节日及二十四节气标准数据，支持一键灌入；
+- 🛡️ **安全加固与 XSS 防御**：前端全面加入 `escapeHtml` 机制，修复里程碑时间序列化与严格多用户数据隔离；
+- 🧪 **自动化测试扩充**：E2E 深度集成测试用例扩展至 37 项，通过率保持 100%。
 
 ### v1.7.0 (系统操作与审计日志系统)
-- 📋 **系统操作与审计日志**：自动记录系统所有关键行为（用户登录/登出、注册、事件创建/编辑/删除、用户管理、系统配置变更、数据导入等）
-- 🔍 **多维过滤与审计分析**：支持按模块（认证/事件/用户/系统）、关键字、IP 地址精准检索与分页查看
-- ⚙️ **设置中心专属日志面板**：管理员可一键查阅操作流水、导出/翻页，并支持一键安全清理历史过期日志
-- 🛡️ **强化操作追踪**：真实记录操作者身份、客户端真实 IP（透传反向代理）及操作结果状态（成功/失败）
+- 📋 **双通道日志体系**：新增 `system_logs` 表记录全链路操作流水，新增 `dayshub.log` 服务运行日志自动 5MB 轮转写入；
+- 🔍 **管理后台日志控制台**：提供操作审计检索与服务运行日志直接查看双视图。
 
-### v1.6.0 (农历闰月适配与小组件接口)
-- 🌙 **农历“闰月”明确标识与双向联动**：表单新增“闰月”勾选框，公农历换算精准支持闰月，卡片清晰展示“农历闰X月Y日”
-- 📱 **专属极简小组件接口 (`/api/widget/summary`)**：面向 iOS Scriptable、Widgy、Android 桌面小组件提供轻量、精炼、结构化 JSON 数据流
-- 🔒 **多用户安全隔离闭环**：导入导出与日历订阅流彻底隔离，修复普通用户越权清库隐患
-- 📅 **每月重复事件上线**：支持创建发薪日、还款日等每月固定周期事件
+### v1.6.0 (农历闰月适配与极简小组件接口)
+- 🌙 **农历“闰月”精准标识**：表单新增“闰月”勾选与双向换算，卡片标识“农历闰X月Y日”；
+- 📱 **专属极简小组件接口 (`/api/widget/summary`)**：面向第三方桌面组件输出精简结构化 JSON。
 
-### v1.5.0 (用户自主注册系统)
-- ✨ **用户自主注册**：登录界面集成注册入口，支持访客自主创建专属账号
-- 🎛️ **注册策略开关**：管理员可在「设置 ➔ 用户管理」中随时开启/关闭公开注册
-- 🛡️ **注册安全审计**：注册接口引入 IP 防爆破频控、格式与唯一性校验，密码自动 PBKDF2 哈希加密
-- 👥 **用户事件数据隔离**：普通用户独立管理所属事件，管理员可全局总览
+---
 
-### v1.4.0 (多用户与后台管理系统)
-- 👥 **多用户管理系统**：新增 users / user_tokens 表，支持管理员与普通用户角色分离
-- 🛡️ **反向代理适配**：默认绑定 `127.0.0.1:5217`，配合宿主机 Nginx/1Panel/Caddy 安全反代与 SSL 证书
-- 🔐 **PBKDF2-SHA256 安全哈希**：所有用户密码均采用强哈希算法加密存储
-- ⚙️ **分页式后台管理面板**：设置中心集成「用户管理」分页，支持一键创建、编辑、重置密码及停用
-- 🔄 **事件归属绑定**：所有创建事件自动关联创建用户，支持平滑迁移已有数据
+## 📄 开源许可证
 
-### v1.3.0 (安全加固与工程优化)
-- 🛡️ **内网端口绑定**：`docker-compose.yml` 默认绑定 `100.64.0.1:5217:5217`，阻断公网暴露隐患
-- 🔒 **登录防爆破机制**：`/api/login` 引入 IP 频控，连续 5 次失败自动锁定 10 分钟 (429)
-- 🔑 **iCal 订阅 Token 解耦**：独立生成只读 `ical_token`，与后台管理主密码彻底分离，且支持在 UI 中一键安全重置
-- 🐛 **取消农历残留 Bug 修复**：编辑事件取消农历时显式清空数据库 `lunar_month` / `lunar_day`
-- 📅 **农历小月 30 日平滑容错**：`lunar_to_solar` 遇小月无 30 日时自动平滑降级至 29 日
-- 🚀 **Waitress 生产 WSGI**：引入多线程生产级 WSGI 服务器，替代 Flask 内置开发服务器
-- 🧹 **死代码与冗余清理**：彻底移除 `notifier.py` 中已废弃的旧晨报生成函数及孤儿代码
-- 🔍 **前端搜索防抖**：添加 250ms 输入防抖，避免高频请求
-- ⚠️ **数据导入安全确认**：导入 JSON 前增加破坏性覆盖确认弹窗
-
-### v1.2.0
-- 🔑 全站密码认证（登录页 + 一年有效期 + 退出按钮）
-- ⚙️ 独立设置页面（推送配置 + 密码修改）
-- 🔔 每事件单独提前提醒天数（默认3天）
-- 📅 公历农历双向直接同步表单值
-- 🔄 四个列表标签增加排序按钮
-- 📋 全部标签移到最前面
-- ❌ 去掉晨报功能，只保留事件提醒
-- 🎨 推送内容美化（分隔线 + emoji）
-- ✅ 推送测试返回各通道成功/失败详情
-- 🎨 统一所有输入框样式
-
-### v1.1.0 (鲁班打磨)
-- API Token 认证中间件
-- Dockerfile 多阶段构建 + HEALTHCHECK
-- 前端搜索/筛选栏 + 自定义确认弹窗
-- 事件历史时间线
-- 推送失败重试机制
-- 节气表扩展 2024-2035
-- logging框架替换print
-
-### v1.0.0 (初始版本)
-- 农历引擎+倒数/累计/循环+里程碑+进度条
-- 多通道推送 (邮件+企微+TG+Webhook)
-- iCal日历订阅
-- RESTful API
-- 彩色卡片UI+暗色模式
-
-## License
-
-MIT
+本项目采用 [MIT License](LICENSE) 开源协议。
