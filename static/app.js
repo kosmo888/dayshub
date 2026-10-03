@@ -1,4 +1,4 @@
-/* DaysHub 时光看板 — 前端逻辑 v2.1.0 */
+/* DaysHub 时光看板 — 前端逻辑 v2.2.0 */
 let dashboardData = null;
 let currentTab = 'all';
 let searchResults = null;
