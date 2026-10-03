@@ -851,7 +851,7 @@ def list_system_logs(user_id: int | None = None, module: str | None = None, acti
 def clear_system_logs(days_to_keep: int | None = None) -> int:
     """清理系统操作日志。若 days_to_keep 指定大于0的整数，则删除N天前日志；否则全部清空"""
     conn = get_db()
-    if days_to_keep and days_to_keep > 0:
+    if days_to_keep is not None and days_to_keep > 0:
         cursor = conn.execute(
             "DELETE FROM system_logs WHERE datetime(created_at) < datetime('now', 'localtime', ?)",
             (f"-{int(days_to_keep)} days",)

@@ -21,7 +21,21 @@ from datetime import date, timedelta
 import os
 BASE = os.environ.get("TEST_BASE_URL", "http://127.0.0.1:5217")
 ADMIN_USER = os.environ.get("TEST_ADMIN_USER", "admin")
-ADMIN_PASS = os.environ.get("TEST_ADMIN_PASS", "admin_demo_pass")
+ADMIN_PASS = os.environ.get("TEST_ADMIN_PASS", "")
+if not ADMIN_PASS:
+    try:
+        import sqlite3
+        db_file = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data", "dayshub.db")
+        if os.path.exists(db_file):
+            conn = sqlite3.connect(db_file)
+            row = conn.execute("SELECT value FROM settings WHERE key='api_token' OR key='admin_password'").fetchone()
+            if row and row[0]:
+                ADMIN_PASS = row[0]
+            conn.close()
+    except Exception:
+        pass
+if not ADMIN_PASS:
+    ADMIN_PASS = "admin_default_pass"
 
 TEST_USER = "tester_audit"
 TEST_PASS = "TestPass_2026"
@@ -176,7 +190,7 @@ dash_ok = s == 200 and "year_progress" in dash and "countdown" in dash and "accu
 log_test("看板主数据汇总接口 (/api/dashboard)", dash_ok, f"countdown={len(dash.get('countdown', []))}, accumulate={len(dash.get('accumulate', []))}")
 
 s, prog = req("GET", "/api/progress", token=test_token)
-prog_ok = s == 200 and "year" in prog and "month" in prog and prog["year"]["total"] in (365, 366)
+prog_ok = s == 200 and "year" in prog and "month" in prog and prog["year"].get("total") in (365, 366)
 log_test("时间进度计算 (/api/progress)", prog_ok, f"year_percent={prog.get('year', {}).get('percent')}%")
 
 s, cat = req("GET", "/api/categories", token=test_token)
@@ -253,6 +267,15 @@ log_test("管理员读取服务实时运行文件日志 (/api/admin/runtime_logs
 
 s, denied_r_logs = req("GET", "/api/admin/runtime_logs", token=test_token)
 log_test("普通用户禁止读取服务运行日志 (403 权限守门)", s == 403)
+
+# 验证日志删除接口 (DELETE /api/admin/logs)
+s, del_logs = req("DELETE", "/api/admin/logs", {"days_to_keep": 0}, token=admin_token)
+log_test("管理员清空审计日志 (DELETE /api/admin/logs)", s == 200 and del_logs.get("ok"))
+s, u_logs_after = req("GET", "/api/user/logs", token=test_token)
+log_test("清空日志后普通用户日志列表更新", s == 200 and u_logs_after.get("total", 0) <= 1)
+
+s, denied_del_logs = req("DELETE", "/api/admin/logs", {"days_to_keep": 0}, token=test_token)
+log_test("普通用户禁止删除审计日志 (403 权限守门)", s == 403)
 
 # ==============================================================
 # 模块 8: 多用户全维度数据隔离验证

@@ -182,7 +182,7 @@ def get_milestones(start_date: date, end_date: date = None) -> list:
         is_passed = ms_date <= end_date
         result.append({
             "milestone": ms,
-            "date": ms_date,
+            "date": ms_date.isoformat(),
             "is_passed": is_passed,
             "days_from_now": (ms_date - end_date).days,
         })

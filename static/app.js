@@ -3,7 +3,18 @@ let dashboardData = null;
 let currentTab = 'all';
 let searchResults = null;
 
-// ========== 轻量 Toast 提示组件 ==========
+// ========== 字符串转义工具 ==========
+function escapeHtml(str) {
+  if (str === null || str === undefined) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+// ========== 提示消息 (Toast) ==========
 function showToast(msg, type = 'info') {
   const toast = document.getElementById('toast');
   if (!toast) return;
@@ -193,6 +204,9 @@ function _updateUserUI() {
   const clearLogsBtn = document.getElementById('btnClearLogsBtn');
   if (clearLogsBtn) {
     clearLogsBtn.style.display = isAdmin ? 'inline-flex' : 'none';
+  }
+  if (!isAdmin && currentLogMode === 'runtime') {
+    switchLogMode('audit');
   }
   const logTitle = document.getElementById('logTitleHeader');
   if (logTitle) {
@@ -1209,6 +1223,11 @@ let currentLogMode = 'audit';
 const LOG_PAGE_SIZE = 25;
 
 function switchLogMode(mode) {
+  const user = getCurrentUser();
+  if (mode === 'runtime' && (!user || user.role !== 'admin')) {
+    showToast('⚠️ 运行日志仅管理员有权查看', 'error');
+    mode = 'audit';
+  }
   currentLogMode = mode;
   const btnAudit = document.getElementById('btnLogModeAudit');
   const btnRuntime = document.getElementById('btnLogModeRuntime');
@@ -1387,12 +1406,15 @@ function clearSystemLogsPrompt() {
       const data = await resp.json();
       if (resp.ok && data.ok) {
         showSettingsMsg(`✅ ${data.msg || '日志已清理'}`, false);
+        showToast(`✅ ${data.msg || '日志已清理'}`);
         loadSystemLogs(1);
       } else {
         showSettingsMsg(`❌ 清理失败: ${data.error || '未知错误'}`, true);
+        showToast(`❌ 清理失败: ${data.error || '未知错误'}`, 'error');
       }
     } catch (e) {
       showSettingsMsg(`❌ 网络异常: ${e.message}`, true);
+      showToast(`❌ 网络异常: ${e.message}`, 'error');
     }
   });
 }

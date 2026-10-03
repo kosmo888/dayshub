@@ -495,7 +495,8 @@ def create_app():
         except (ValueError, TypeError):
             days = None
         count = clear_system_logs(days_to_keep=days)
-        _log("clear_logs", "system", f"清理系统日志: 共清除 {count} 条 (保留天数: {days if days else '全部'})")
+        details_txt = f"清理系统日志: 共清除 {count} 条 (保留天数: {days if days is not None and days > 0 else '全部'})"
+        _log("clear_logs", "system", details_txt)
         return jsonify({"ok": True, "deleted_count": count, "msg": f"已成功清理 {count} 条日志"})
 
 

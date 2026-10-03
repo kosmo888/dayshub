@@ -208,6 +208,30 @@ def test_lunar_leap_month():
     assert "农历闰6月1日" in c_ev.get("lunar_str", "")
 
 
+def test_system_log_lifecycle():
+    from models import log_system_action, list_system_logs, clear_system_logs
+    log_system_action(user_id=999, username="test_logger", action="test_action", module="test_mod", details="test details", ip="127.0.0.1")
+    
+    # 查询日志
+    res = list_system_logs(user_id=999)
+    assert res["total"] >= 1
+    assert any(l["action"] == "test_action" for l in res["logs"])
+    
+    # 模块过滤
+    res_mod = list_system_logs(module="test_mod")
+    assert any(l["details"] == "test details" for l in res_mod["logs"])
+
+    # 关键字过滤
+    res_kw = list_system_logs(keyword="test details")
+    assert len(res_kw["logs"]) >= 1
+
+    # 清理日志 (0 天保留 = 全部清理，或指定保留)
+    deleted = clear_system_logs(days_to_keep=0)
+    assert deleted >= 1
+    res_after = list_system_logs(user_id=999)
+    assert res_after["total"] == 0
+
+
 if __name__ == "__main__":
     test_lunar_conversion()
     test_lunar_small_month_tolerance()
@@ -220,4 +244,5 @@ if __name__ == "__main__":
     test_multi_user_lifecycle()
     test_registration_toggle_and_logic()
     test_lunar_leap_month()
+    test_system_log_lifecycle()
     print("✅ 全部 pytest 测试用例本地执行通过！")
