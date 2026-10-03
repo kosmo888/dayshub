@@ -1,4 +1,4 @@
-/* DaysHub 时光看板 — 前端逻辑 v2.0.0 */
+/* DaysHub 时光看板 — 前端逻辑 v2.1.0 */
 let dashboardData = null;
 let currentTab = 'all';
 let searchResults = null;
@@ -189,13 +189,17 @@ function showApp() {
 function _updateUserUI() {
   const user = getCurrentUser();
   const isAdmin = user && user.role === 'admin';
+  const adminGroup = document.getElementById('sidebarAdminGroup');
+  if (adminGroup) {
+    adminGroup.style.display = isAdmin ? 'flex' : 'none';
+  }
   const userBtn = document.getElementById('subtabBtnUsers');
   if (userBtn) {
-    userBtn.style.display = isAdmin ? 'inline-flex' : 'none';
+    userBtn.style.display = isAdmin ? 'flex' : 'none';
   }
   const logsBtn = document.getElementById('subtabBtnLogs');
   if (logsBtn) {
-    logsBtn.style.display = 'inline-flex';
+    logsBtn.style.display = 'flex';
   }
   const logModeToggle = document.getElementById('logModeToggle');
   if (logModeToggle) {
@@ -292,37 +296,26 @@ async function loadDashboard() {
     const resp = await apiFetch('/api/dashboard');
     dashboardData = await resp.json();
     renderHeader();
+    renderHeroFocus();
     renderToday();
     renderTabs();
     refreshCategorySelects();
   } catch (e) { console.error('加载失败:', e); }
 }
 
-// ========== 搜索（带 250ms 防抖） ==========
-let _searchTimer = null;
-function doSearch() {
-  clearTimeout(_searchTimer);
-  _searchTimer = setTimeout(_executeSearch, 250);
+function getRemainingWeekends() {
+  const now = new Date();
+  const endOfYear = new Date(now.getFullYear(), 11, 31);
+  let count = 0;
+  const cur = new Date(now);
+  while (cur <= endOfYear) {
+    if (cur.getDay() === 0) count++;
+    cur.setDate(cur.getDate() + 1);
+  }
+  return count;
 }
 
-async function _executeSearch() {
-  const q = document.getElementById('searchInput').value.trim();
-  const cat = document.getElementById('searchCategory').value;
-  if (!q && !cat) { searchResults = null; renderTabs(); return; }
-  const params = new URLSearchParams();
-  if (q) params.set('q', q);
-  if (cat) params.set('category', cat);
-  const resp = await apiFetch('/api/events/search?' + params.toString());
-  searchResults = await resp.json();
-  document.querySelectorAll('.tab').forEach(b => b.classList.remove('active'));
-  document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-  document.querySelector('[data-tab="all"]').classList.add('active');
-  document.getElementById('tab-all').classList.add('active');
-  currentTab = 'all';
-  renderAll();
-}
-
-// ========== 渲染头部 ==========
+// ========== 渲染头部与时间胶囊 ==========
 function renderHeader() {
   const d = dashboardData;
   const lunar = d.lunar.chinese_str || '';
@@ -331,15 +324,77 @@ function renderHeader() {
     `${d.date} · ${lunar} · ${d.shengxiao}年${d.ganzhi}${term}`;
   const yp = d.year_progress;
   const mp = d.month_progress;
+  const weekendsLeft = getRemainingWeekends();
   document.getElementById('progressBars').innerHTML = `
     <div class="progress-item">
-      <div class="progress-label"><span>📊 今年</span><span>${yp.passed}/${yp.total}天 · ${yp.percent}%</span></div>
+      <div class="progress-label">
+        <span>📊 年度时间胶囊</span>
+        <span>已过 ${yp.passed}/${yp.total} 天 · 剩 ${yp.remaining} 天 (仅剩 ${weekendsLeft} 个周末) · ${yp.percent}%</span>
+      </div>
       <div class="progress-bar"><div class="progress-fill" style="width:${yp.percent}%"></div></div>
     </div>
     <div class="progress-item">
-      <div class="progress-label"><span>📅 本月</span><span>${mp.passed}/${mp.total}天 · ${mp.percent}%</span></div>
+      <div class="progress-label">
+        <span>📅 本月进度</span>
+        <span>${mp.passed}/${mp.total} 天 · 剩 ${mp.remaining} 天 · ${mp.percent}%</span>
+      </div>
       <div class="progress-bar"><div class="progress-fill" style="width:${mp.percent}%"></div></div>
     </div>`;
+}
+
+// ========== 渲染今日焦点 Hero 卡片 ==========
+function renderHeroFocus() {
+  const section = document.getElementById('heroFocusSection');
+  const card = document.getElementById('heroFocusCard');
+  if (!section || !card || !dashboardData) return;
+
+  const all = dashboardData.all_events || [];
+  const todayEvs = dashboardData.today_events || [];
+
+  let heroEv = null;
+  let isTodayHero = false;
+
+  if (todayEvs.length > 0) {
+    heroEv = todayEvs[0];
+    isTodayHero = true;
+  } else {
+    const upcoming = all.filter(e => e.event_type !== 'accumulate' && !e.is_today && (e.days_remaining !== null && e.days_remaining >= 0));
+    upcoming.sort((a, b) => {
+      if (a.is_pinned !== b.is_pinned) return b.is_pinned ? 1 : -1;
+      return (a.days_remaining ?? 9999) - (b.days_remaining ?? 9999);
+    });
+    if (upcoming.length > 0) {
+      heroEv = upcoming[0];
+    }
+  }
+
+  if (!heroEv) {
+    section.style.display = 'none';
+    return;
+  }
+
+  section.style.display = 'block';
+  const tagText = isTodayHero ? '🎉 今日专属纪念' : (heroEv.days_remaining <= 3 ? '⚡ 紧迫倒计时' : (heroEv.is_pinned ? '📌 置顶焦点' : '🎯 焦点倒计时'));
+  const subText = heroEv.lunar_str || (heroEv.next_date ? `公历 ${heroEv.next_date}` : heroEv.date);
+  const noteStr = heroEv.note ? ` · 📝 ${heroEv.note}` : '';
+
+  card.style.borderColor = heroEv.color || 'var(--accent)';
+  card.onclick = () => editEvent(heroEv.id);
+
+  card.innerHTML = `
+    <div class="hero-focus-left">
+      <span class="hero-focus-icon">${heroEv.icon || '⏳'}</span>
+      <div class="hero-focus-info">
+        <span class="hero-focus-tag" style="background:${heroEv.color || 'var(--accent)'};">${tagText}</span>
+        <div class="hero-focus-title">${escapeHtml(heroEv.title)}</div>
+        <div class="hero-focus-sub">${escapeHtml(subText)}${escapeHtml(noteStr)}</div>
+      </div>
+    </div>
+    <div class="hero-focus-right">
+      <div class="hero-focus-num" style="color:${heroEv.color || 'var(--accent)'};">${isTodayHero ? '今日' : heroEv.days_remaining}</div>
+      <div class="hero-focus-unit">${isTodayHero ? '' : '天后'}</div>
+    </div>
+  `;
 }
 
 // ========== 渲染今日 ==========
@@ -484,16 +539,36 @@ function renderEventCard(ev) {
   const sub = ev.lunar_str || (ev.next_date ? `公历 ${ev.next_date}` : ev.date);
   const ageStr = ev.age ? ` · 第${ev.age}年` : '';
   const pinIcon = ev.is_pinned ? '📌 ' : '';
+
+  let urgencyCls = '';
+  let urgencyBadge = '';
+  if (!isToday && days !== null && days !== undefined) {
+    if (days <= 3) {
+      urgencyCls = 'urgent-pulse';
+      urgencyBadge = `<span class="urgent-badge">⚡ 剩${days}天</span>`;
+    } else if (days <= 15) {
+      urgencyCls = 'impending';
+    }
+  }
+
   let daysHtml;
   if (isToday) { daysHtml = '<span class="ev-badge-today">🎉 今天</span>'; }
   else if (days !== null && days !== undefined) {
     daysHtml = `<div class="ev-days"><div class="ev-days-num" style="color:${ev.color}">${days}</div><div class="ev-days-unit">天后</div></div>`;
   } else { daysHtml = ''; }
-  return `<div class="event-card ${ev.is_pinned ? 'pinned' : ''}" style="border-color:${ev.color}" onclick="editEvent(${ev.id})">
+
+  return `<div class="event-card ${ev.is_pinned ? 'pinned' : ''} ${urgencyCls}" style="border-color:${ev.color}" onclick="editEvent(${ev.id})">
+    <div class="card-quick-actions" onclick="event.stopPropagation()">
+      <button class="card-action-btn" title="${ev.is_pinned ? '取消置顶' : '置顶'}" onclick="quickTogglePin(${ev.id}, ${ev.is_pinned ? 0 : 1})">
+        ${ev.is_pinned ? '📍' : '📌'}
+      </button>
+      <button class="card-action-btn" title="编辑" onclick="editEvent(${ev.id})">✏️</button>
+      <button class="card-action-btn danger" title="删除" onclick="quickDeleteEvent(${ev.id}, '${escapeHtml(ev.title)}')">🗑️</button>
+    </div>
     <span class="ev-icon">${ev.icon}</span>
     <div class="ev-info">
-      <div class="ev-title">${pinIcon}${ev.title}${ageStr}</div>
-      <div class="ev-sub">${sub}${ev.note ? ' · 📝 ' + ev.note : ''}</div>
+      <div class="ev-title">${pinIcon}${escapeHtml(ev.title)}${ageStr}${urgencyBadge}</div>
+      <div class="ev-sub">${escapeHtml(sub)}${ev.note ? ' · 📝 ' + escapeHtml(ev.note) : ''}</div>
     </div>
     ${daysHtml}
   </div>`;
@@ -512,14 +587,55 @@ function renderAccumCard(ev) {
     }).join('')}</div>`;
   }
   return `<div class="event-card ${ev.is_pinned ? 'pinned' : ''}" style="border-color:${ev.color}" onclick="editEvent(${ev.id})">
+    <div class="card-quick-actions" onclick="event.stopPropagation()">
+      <button class="card-action-btn" title="${ev.is_pinned ? '取消置顶' : '置顶'}" onclick="quickTogglePin(${ev.id}, ${ev.is_pinned ? 0 : 1})">
+        ${ev.is_pinned ? '📍' : '📌'}
+      </button>
+      <button class="card-action-btn" title="编辑" onclick="editEvent(${ev.id})">✏️</button>
+      <button class="card-action-btn danger" title="删除" onclick="quickDeleteEvent(${ev.id}, '${escapeHtml(ev.title)}')">🗑️</button>
+    </div>
     <span class="ev-icon">${ev.icon}</span>
     <div class="ev-info">
-      <div class="ev-title">${pinIcon}${ev.title}</div>
+      <div class="ev-title">${pinIcon}${escapeHtml(ev.title)}</div>
       <div class="ev-sub">从 ${ev.date} 起${msStr}</div>
       ${msDots}
     </div>
     <div class="ev-days"><div class="ev-days-num" style="color:${ev.color}">${days}</div><div class="ev-days-unit">天已过</div></div>
   </div>`;
+}
+
+async function quickTogglePin(id, pinVal) {
+  try {
+    const resp = await apiFetch(`/api/events/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ is_pinned: pinVal })
+    });
+    if (resp.ok) {
+      showToast(pinVal ? '📌 已置顶事件' : '已取消置顶');
+      await loadDashboard();
+    } else {
+      showToast('操作失败', 'error');
+    }
+  } catch (e) {
+    showToast('网络错误: ' + e.message, 'error');
+  }
+}
+
+async function quickDeleteEvent(id, title) {
+  showConfirm(`确定要删除事件 [${title}] 吗？`, async () => {
+    try {
+      const resp = await apiFetch(`/api/events/${id}`, { method: 'DELETE' });
+      if (resp.ok) {
+        showToast('✅ 事件已删除');
+        await loadDashboard();
+      } else {
+        showToast('删除失败', 'error');
+      }
+    } catch (e) {
+      showToast('网络错误: ' + e.message, 'error');
+    }
+  });
 }
 
 function renderStats() {

@@ -7,7 +7,7 @@
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23667eea'><rect x='3' y='4' width='18' height='18' rx='4' fill='%23667eea'/><circle cx='8' cy='2' r='1.5' fill='%23fff'/><circle cx='16' cy='2' r='1.5' fill='%23fff'/><rect x='6' y='10' width='12' height='8' rx='2' fill='%23fff'/></svg>">
 <link rel="manifest" href="/manifest.json">
 <meta name="theme-color" content="#667eea">
-<link rel="stylesheet" href="/static/style.css?v=2.0.0">
+<link rel="stylesheet" href="/static/style.css?v=2.1.0">
 </head>
 <body>
 
@@ -78,6 +78,11 @@
       <div class="progress-bars" id="progressBars"></div>
     </div>
   </header>
+
+  <!-- 今日焦点 Hero 区域 (最近紧迫倒计时 / 焦点纪念) -->
+  <section class="section hero-focus-section" id="heroFocusSection" style="display:none;">
+    <div id="heroFocusCard"></div>
+  </section>
 
   <!-- 今日纪念 -->
   <section class="section today-section" id="todaySection" style="display:none">
@@ -285,47 +290,59 @@
     </div>
   </div>
 
-  <!-- 设置页面 (多选项卡分页结构) -->
+  <!-- 设置页面 (桌面级左右分栏高级排版架构) -->
   <div class="modal-overlay" id="settingsModal" style="display:none">
     <div class="modal modal-settings">
       <div class="modal-header">
-        <h3>⚙️ 系统设置</h3>
+        <div style="display:flex; align-items:center; gap:8px;">
+          <h3 style="margin:0;">⚙️ 系统设置中心</h3>
+          <span style="font-size:11px; font-weight:600; padding:2px 7px; border-radius:10px; background:rgba(99,102,241,0.15); color:var(--accent); letter-spacing:0.5px;">v2.1.0</span>
+        </div>
         <button class="modal-close" onclick="document.getElementById('settingsModal').style.display='none'">✕</button>
       </div>
 
-      <!-- 设置页内部导航分页 Tabs -->
-      <div class="settings-nav">
-        <button class="settings-nav-btn active" data-subtab="push" onclick="switchSettingsTab('push')">
-          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
-          推送通知
-        </button>
-        <button class="settings-nav-btn" data-subtab="calendar" onclick="switchSettingsTab('calendar')">
-          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
-          日历订阅
-        </button>
-        <button class="settings-nav-btn" data-subtab="category" onclick="switchSettingsTab('category')">
-          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path><line x1="7" y1="7" x2="7.01" y2="7"></line></svg>
-          分类管理
-        </button>
-        <button class="settings-nav-btn" data-subtab="backup" onclick="switchSettingsTab('backup')">
-          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
-          数据备份
-        </button>
-        <button class="settings-nav-btn" data-subtab="password" onclick="switchSettingsTab('password')">
-          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
-          安全密码
-        </button>
-        <button class="settings-nav-btn admin-only" id="subtabBtnUsers" data-subtab="users" onclick="switchSettingsTab('users')" style="display:none;">
-          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
-          用户管理
-        </button>
-        <button class="settings-nav-btn admin-only" id="subtabBtnLogs" data-subtab="logs" onclick="switchSettingsTab('logs')" style="display:none;">
-          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
-          操作日志
-        </button>
-      </div>
+      <div class="settings-layout">
+        <!-- 左侧固定功能导航栏 (Sidebar) -->
+        <aside class="settings-sidebar">
+          <div class="settings-sidebar-group">
+            <div class="settings-sidebar-title">基础配置</div>
+            <button class="settings-nav-btn active" data-subtab="push" onclick="switchSettingsTab('push')">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
+              <span>推送通知</span>
+            </button>
+            <button class="settings-nav-btn" data-subtab="calendar" onclick="switchSettingsTab('calendar')">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+              <span>日历订阅</span>
+            </button>
+            <button class="settings-nav-btn" data-subtab="category" onclick="switchSettingsTab('category')">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path><line x1="7" y1="7" x2="7.01" y2="7"></line></svg>
+              <span>分类管理</span>
+            </button>
+            <button class="settings-nav-btn" data-subtab="backup" onclick="switchSettingsTab('backup')">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
+              <span>数据备份</span>
+            </button>
+            <button class="settings-nav-btn" data-subtab="password" onclick="switchSettingsTab('password')">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+              <span>安全密码</span>
+            </button>
+          </div>
 
-      <div class="modal-body settings-scroll">
+          <div class="settings-sidebar-group admin-only" id="sidebarAdminGroup" style="display:none;">
+            <div class="settings-sidebar-title">管理中心</div>
+            <button class="settings-nav-btn" id="subtabBtnUsers" data-subtab="users" onclick="switchSettingsTab('users')">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+              <span>用户管理</span>
+            </button>
+            <button class="settings-nav-btn" id="subtabBtnLogs" data-subtab="logs" onclick="switchSettingsTab('logs')">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+              <span>操作日志</span>
+            </button>
+          </div>
+        </aside>
+
+        <!-- 右侧主内容区 (Main Content) -->
+        <main class="settings-main settings-scroll">
         <!-- 页面 1: 推送设置 -->
         <div id="subtab-push" class="settings-page active">
           <div class="channel-group">
@@ -562,6 +579,7 @@
         </div>
 
         <p id="settingsMsg" class="settings-msg" style="display:none;"></p>
+        </main>
       </div>
     </div>
   </div>
@@ -687,6 +705,6 @@
   </footer>
 </div>
 
-<script src="/static/app.js?v=2.0.0"></script>
+<script src="/static/app.js?v=2.1.0"></script>
 </body>
 </html>
