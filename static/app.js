@@ -1,4 +1,4 @@
-/* DaysHub 时光看板 — 前端逻辑 v2.2.0 */
+/* DaysHub 时光看板 — 前端逻辑 v2.2.1 */
 let dashboardData = null;
 let currentTab = 'all';
 let searchResults = null;
@@ -1640,11 +1640,10 @@ async function loadCategoryManageView() {
       html += `
         <div class="cat-item-card">
           <div class="cat-badge-preview">
-            <span style="font-size:18px;">${item.icon || '📌'}</span>
-            <span style="color:${item.color || 'var(--text)'};">${escapeHtml(item.name)}</span>
-            <span style="font-size:11px; color:var(--text-muted); font-family:monospace;">(${escapeHtml(slug)})</span>
+            <span class="cat-icon-text">${item.icon || '📌'}</span>
+            <span class="cat-name-text" style="color:${item.color || 'var(--text)'};">${escapeHtml(item.name)}</span>
           </div>
-          <div style="display:flex; gap:6px;">
+          <div class="cat-actions">
             <button class="btn btn-secondary btn-sm" onclick="openEditCategoryModal('${escapeHtml(slug)}')">编辑</button>
             ${!isProtected ? `<button class="btn btn-danger btn-sm" onclick="deleteCategoryAction('${escapeHtml(slug)}')">删除</button>` : ''}
           </div>
@@ -1658,14 +1657,17 @@ async function loadCategoryManageView() {
 }
 
 function openAddCategoryModal() {
-  document.getElementById('categoryModalTitle').textContent = '新增事件分类';
+  document.getElementById('categoryModalTitle').textContent = '新增分类';
   const slugInput = document.getElementById('catSlug');
-  slugInput.value = '';
-  slugInput.readOnly = false;
+  if (slugInput) slugInput.value = '';
   document.getElementById('catName').value = '';
   document.getElementById('catIcon').value = '📌';
   document.getElementById('catColor').value = '#6366f1';
   document.getElementById('categoryModal').style.display = 'flex';
+  setTimeout(() => {
+    const el = document.getElementById('catName');
+    if (el) el.focus();
+  }, 50);
 }
 
 function openEditCategoryModal(slug) {
@@ -1673,23 +1675,35 @@ function openEditCategoryModal(slug) {
   const cat = cats[slug] || { name: slug, color: '#6366f1', icon: '📌' };
   document.getElementById('categoryModalTitle').textContent = `编辑分类: ${cat.name}`;
   const slugInput = document.getElementById('catSlug');
-  slugInput.value = slug;
-  slugInput.readOnly = true;
+  if (slugInput) slugInput.value = slug;
   document.getElementById('catName').value = cat.name;
   document.getElementById('catIcon').value = cat.icon || '📌';
   document.getElementById('catColor').value = cat.color || '#6366f1';
   document.getElementById('categoryModal').style.display = 'flex';
+  setTimeout(() => {
+    const el = document.getElementById('catName');
+    if (el) el.focus();
+  }, 50);
 }
 
 async function saveCategorySubmit(e) {
   e.preventDefault();
-  const slug = document.getElementById('catSlug').value.trim().toLowerCase();
+  let slug = (document.getElementById('catSlug')?.value || '').trim().toLowerCase();
   const name = document.getElementById('catName').value.trim();
   const icon = document.getElementById('catIcon').value.trim() || '📌';
   const color = document.getElementById('catColor').value || '#6366f1';
-  if (!slug || !name) {
-    showToast('分类标识和名称不能为空', 'error');
+  if (!name) {
+    showToast('分类名称不能为空', 'error');
     return;
+  }
+  // 新增分类时如果未指定 slug，根据中英文名称自动生成稳定 slug
+  if (!slug) {
+    const clean = name.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+    if (clean.length >= 2) {
+      slug = clean.substring(0, 16);
+    } else {
+      slug = 'cat_' + Date.now().toString(36);
+    }
   }
   try {
     const resp = await apiFetch('/api/categories', {

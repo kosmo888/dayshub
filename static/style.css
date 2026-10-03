@@ -1272,21 +1272,28 @@ body {
   color: var(--danger);
 }
 
-/* 分类管理卡片布局 */
+/* 分类管理卡片布局 — 清爽自适应排版，仅保留分类名称（中英文），杜绝折行与挤压 */
 .cat-manage-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 12px;
-  margin-top: 10px;
+  margin-top: 12px;
+}
+@media (max-width: 640px) {
+  .cat-manage-grid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
 }
 .cat-item-card {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 10px 14px;
+  padding: 12px 16px;
   background: var(--bg);
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: 12px;
+  gap: 14px;
   transition: all .16s ease;
 }
 .cat-item-card:hover {
@@ -1295,11 +1302,29 @@ body {
   box-shadow: var(--shadow-sm);
 }
 .cat-badge-preview {
-  display: inline-flex;
+  display: flex;
   align-items: center;
+  gap: 10px;
+  min-width: 0;
+  flex: 1;
+}
+.cat-icon-text {
+  font-size: 20px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+.cat-name-text {
+  font-size: 15px;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  letter-spacing: -0.2px;
+}
+.cat-actions {
+  display: flex;
   gap: 6px;
-  font-weight: 600;
-  font-size: 13.5px;
+  flex-shrink: 0;
 }
 
 /* 日历复制框 */

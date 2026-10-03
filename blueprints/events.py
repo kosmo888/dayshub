@@ -79,10 +79,10 @@ def api_categories():
 @events_bp.route("/api/categories", methods=["POST", "PUT"])
 @require_auth
 def api_save_category():
-    """新增或修改分类"""
+    """新增或修改分类（支持仅输入中英文名称，slug自动维护）"""
     data = request.get_json() or {}
-    slug = str(data.get("slug", "")).strip().lower()
     name = str(data.get("name", "")).strip()
+    slug = str(data.get("slug", "")).strip().lower()
     color = str(data.get("color", "#6366f1")).strip()
     icon = str(data.get("icon", "📌")).strip()
     try:
@@ -90,8 +90,16 @@ def api_save_category():
     except (ValueError, TypeError):
         sort_order = 0
 
-    if not slug or not name:
-        return jsonify({"ok": False, "error": "分类标识(slug)和显示名称不能为空"}), 400
+    if not name:
+        return jsonify({"ok": False, "error": "分类名称不能为空"}), 400
+
+    if not slug:
+        import hashlib, time
+        clean = "".join(c for c in name if c.isalnum() and ord(c) < 128).lower()
+        if len(clean) >= 2:
+            slug = clean[:16]
+        else:
+            slug = "cat_" + hashlib.md5(f"{name}_{time.time()}".encode("utf-8")).hexdigest()[:8]
 
     cats = save_category(slug, name, color, icon, sort_order)
     log_action("category_save", "category", f"保存分类: {name} ({slug})")
