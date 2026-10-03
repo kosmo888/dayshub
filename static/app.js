@@ -1,4 +1,4 @@
-/* DaysHub 时光看板 — 前端逻辑 v2.2.1 */
+/* DaysHub 时光看板 — 前端逻辑 v2.3.0 */
 let dashboardData = null;
 let currentTab = 'all';
 let searchResults = null;
@@ -1018,18 +1018,25 @@ async function loadBackupFileList() {
         container.innerHTML = '<p class="modal-desc">暂无备份快照文件</p>';
         return;
       }
-      let html = '<div style="display:flex; flex-direction:column; gap:6px;">';
+      let html = '<div style="display:flex; flex-direction:column; gap:8px;">';
       for (const f of files) {
         const sizeKb = (f.size / 1024).toFixed(1);
         const token = getToken() || '';
         const dlUrl = `/api/backup/download/${encodeURIComponent(f.filename)}?token=${encodeURIComponent(token)}`;
+        const isDb = f.filename.endsWith('.db');
+        const typeBadge = isDb
+          ? '<span style="display:inline-block; font-size:10px; font-weight:700; padding:1px 6px; border-radius:4px; background:rgba(99,102,241,0.14); color:var(--accent); margin-right:6px;">SQLITE DB</span>'
+          : '<span style="display:inline-block; font-size:10px; font-weight:700; padding:1px 6px; border-radius:4px; background:rgba(16,185,129,0.14); color:var(--success); margin-right:6px;">JSON 快照</span>';
         html += `
-          <div style="display:flex; justify-content:space-between; align-items:center; padding:4px 0; border-bottom:1px solid var(--border);">
-            <div style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:65%;">
-              <b style="color:var(--text);">${f.filename}</b>
-              <span style="color:var(--text-muted); font-size:11px; margin-left:6px;">${sizeKb} KB · ${f.created_at}</span>
+          <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 10px; background:var(--bg); border:1px solid var(--border); border-radius:8px; gap:8px;">
+            <div style="min-width:0; flex:1;">
+              <div style="display:flex; align-items:center; margin-bottom:2px;">
+                ${typeBadge}
+                <span style="color:var(--text); font-weight:600; font-size:12.5px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${escapeHtml(f.filename)}">${escapeHtml(f.filename)}</span>
+              </div>
+              <div style="color:var(--text-muted); font-size:11px;">大小: ${sizeKb} KB · 生成时间: ${new Date(f.created_at * 1000).toLocaleString()}</div>
             </div>
-            <a href="${dlUrl}" target="_blank" download="${f.filename}" class="btn btn-secondary btn-sm" style="text-decoration:none; padding:3px 8px; font-size:11px;">
+            <a href="${dlUrl}" target="_blank" download="${f.filename}" class="btn btn-secondary btn-sm" style="text-decoration:none; padding:4px 10px; font-size:11.5px; white-space:nowrap; flex-shrink:0;">
               ⬇ 下载
             </a>
           </div>
@@ -1510,22 +1517,23 @@ async function loadSystemLogs(page = 1) {
     };
 
     let html = `
-      <table class="log-table">
+      <div class="log-table-wrapper" style="overflow-x:auto; width:100%; border-radius:var(--radius-sm); border:1px solid var(--border);">
+      <table class="log-table" style="min-width:650px; margin-top:0; border:none;">
         <thead>
           <tr>
-            <th style="width:130px;">时间</th>
-            ${isAdmin ? '<th style="width:70px;">用户</th>' : ''}
-            <th style="width:65px;">模块</th>
-            <th>操作与详情</th>
-            <th style="width:100px;">IP 地址</th>
-            <th style="width:50px;">状态</th>
+            <th style="width:115px; white-space:nowrap;">时间</th>
+            ${isAdmin ? '<th style="width:75px; white-space:nowrap;">操作人</th>' : ''}
+            <th style="width:60px; white-space:nowrap;">模块</th>
+            <th style="min-width:180px;">操作详情</th>
+            <th style="width:95px; white-space:nowrap;">IP 地址</th>
+            <th style="width:55px; white-space:nowrap;">状态</th>
           </tr>
         </thead>
         <tbody>
     `;
 
     for (const log of logs) {
-      const timeStr = (log.created_at || '').substring(5);
+      const timeStr = (log.created_at || '').substring(5, 16);
       const uStr = log.username ? escapeHtml(log.username) : '<span style="color:var(--text-muted)">系统</span>';
       const modStr = moduleMap[log.module] || escapeHtml(log.module || '其它');
       const isOk = log.status === 'ok';
@@ -1537,17 +1545,17 @@ async function loadSystemLogs(page = 1) {
 
       html += `
         <tr>
-          <td style="color:var(--text-muted); font-size:11px; white-space:nowrap;">${escapeHtml(timeStr)}</td>
-          ${isAdmin ? `<td><b>${uStr}</b></td>` : ''}
-          <td><span class="user-badge badge-log-module">${modStr}</span></td>
-          <td style="word-break:break-all;">${details}</td>
-          <td style="color:var(--text-muted); font-size:11px; font-family:monospace;">${ipStr}</td>
-          <td>${statusBadge}</td>
+          <td style="color:var(--text-muted); font-size:11px; white-space:nowrap; font-family:monospace;">${escapeHtml(timeStr)}</td>
+          ${isAdmin ? `<td style="font-weight:600; white-space:nowrap;">${uStr}</td>` : ''}
+          <td style="white-space:nowrap;"><span class="user-badge badge-log-module">${modStr}</span></td>
+          <td style="word-break:break-word; line-height:1.5;">${details}</td>
+          <td style="color:var(--text-muted); font-size:11px; font-family:monospace; white-space:nowrap;">${ipStr}</td>
+          <td style="white-space:nowrap;">${statusBadge}</td>
         </tr>
       `;
     }
 
-    html += '</tbody></table>';
+    html += '</tbody></table></div>';
     container.innerHTML = html;
 
     if (pagination) {
