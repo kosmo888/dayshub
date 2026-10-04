@@ -8,11 +8,11 @@
    ============================================================================== */
 
 :root {
-  /* 品牌核心主色 (Linear Signature Indigo-Violet) */
-  --primary: #5e6ad2;
-  --primary-hover: #7170ff;
-  --primary-glow: #828fff;
-  --primary-rgb: 94, 106, 210;
+  /* 品牌核心主色 (Swiss Focus Red & Accent Emerald) */
+  --primary: #dc2626;
+  --primary-hover: #ef4444;
+  --primary-glow: #f87171;
+  --primary-rgb: 220, 38, 38;
   
   /* 基础表面 (Light Mode Context) */
   --bg: #f8fafc;
@@ -21,7 +21,7 @@
   --card-bg-translucent: rgba(255, 255, 255, 0.88);
   --border: #e2e8f0;
   --border-subtle: rgba(0, 0, 0, 0.06);
-  --border-focus: #5e6ad2;
+  --border-focus: #dc2626;
   
   /* 文本阶梯 (Light Mode) */
   --text: #0f172a;
@@ -30,19 +30,19 @@
   --text-inverse: #ffffff;
   
   /* 功能状态色 */
-  --accent: #5e6ad2;
-  --accent-hover: #7170ff;
+  --accent: #dc2626;
+  --accent-hover: #ef4444;
   --danger: #ef4444;
   --danger-bg: rgba(239, 68, 68, 0.08);
-  --success: #10b981;
-  --success-bg: rgba(16, 185, 129, 0.08);
+  --success: #059669;
+  --success-bg: rgba(5, 150, 105, 0.08);
   --warning: #f59e0b;
   --warning-bg: rgba(245, 158, 11, 0.08);
   
   /* 渐变微光系统 */
-  --primary-gradient: linear-gradient(135deg, #4f46e5 0%, #7c3aed 50%, #c026d3 100%);
-  --hero-gradient: linear-gradient(135deg, rgba(94, 106, 210, 0.06) 0%, rgba(255, 255, 255, 0.9) 100%);
-  --card-border-glow: linear-gradient(135deg, rgba(94, 106, 210, 0.4) 0%, rgba(0, 0, 0, 0.06) 100%);
+  --primary-gradient: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+  --hero-gradient: linear-gradient(135deg, rgba(220, 38, 38, 0.06) 0%, rgba(255, 255, 255, 0.9) 100%);
+  --card-border-glow: linear-gradient(135deg, rgba(220, 38, 38, 0.4) 0%, rgba(0, 0, 0, 0.06) 100%);
   
   /* 层次阴影系统 */
   --shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
@@ -63,37 +63,39 @@
    ============================================================================== */
 [data-theme="dark"] {
   /* 纯黑深色分层 */
-  --bg: #08090a;                  /* Marketing Deep Canvas */
-  --bg-subtle: #0f1011;           /* Panel Dark */
-  --card-bg: #131415;             /* Elevated Level 3 Surface */
-  --card-bg-translucent: rgba(19, 20, 21, 0.85);
+  --bg: #0f172a;                  /* Swiss Slate Canvas */
+  --bg-subtle: #1e293b;           /* Panel Slate */
+  --card-bg: #192134;             /* Elevated Level 3 Surface */
+  --card-bg-translucent: rgba(25, 33, 52, 0.88);
   --border: rgba(255, 255, 255, 0.08); /* Moonlight Subtle Border */
   --border-subtle: rgba(255, 255, 255, 0.04);
-  --border-focus: #7170ff;
+  --border-focus: #ef4444;
   
   /* 文本阶梯 */
-  --text: #f7f8f8;                /* Near-White Non-Glare */
-  --text-secondary: #d0d6e0;      /* Cool Silver-Gray */
-  --text-muted: #8a8f98;          /* Muted Gray */
+  --text: #f8fafc;                /* Near-White Non-Glare */
+  --text-secondary: #cbd5e1;      /* Cool Silver-Gray */
+  --text-muted: #94a3b8;          /* Muted Gray */
   --text-inverse: #ffffff;
   
   /* 功能状态色 */
-  --accent: #7170ff;
-  --accent-hover: #828fff;
+  --accent: #ef4444;
+  --accent-hover: #f87171;
   --danger: #f87171;
   --danger-bg: rgba(239, 68, 68, 0.15);
+  --success: #10b981;
+  --success-bg: rgba(16, 185, 129, 0.15);
   
   /* 渐变微光系统 */
-  --primary-gradient: linear-gradient(135deg, #5e6ad2 0%, #7170ff 100%);
-  --hero-gradient: linear-gradient(135deg, rgba(94, 106, 210, 0.14) 0%, rgba(19, 20, 21, 0.95) 100%);
-  --card-border-glow: linear-gradient(135deg, rgba(113, 112, 255, 0.35) 0%, rgba(255, 255, 255, 0.05) 100%);
+  --primary-gradient: linear-gradient(135deg, #dc2626 0%, #ef4444 100%);
+  --hero-gradient: linear-gradient(135deg, rgba(220, 38, 38, 0.14) 0%, rgba(25, 33, 52, 0.95) 100%);
+  --card-border-glow: linear-gradient(135deg, rgba(239, 68, 68, 0.35) 0%, rgba(255, 255, 255, 0.05) 100%);
   
   /* 层次阴影系统 */
   --shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.5);
   --shadow-md: 0 4px 16px -2px rgba(0, 0, 0, 0.6);
   --shadow-lg: 0 12px 36px -4px rgba(0, 0, 0, 0.75);
   --shadow-xl: 0 24px 50px -8px rgba(0, 0, 0, 0.9);
-  --shadow-glow: 0 0 30px rgba(113, 112, 255, 0.22);
+  --shadow-glow: 0 0 30px rgba(220, 38, 38, 0.22);
 }
 
 /* 全局基底 */
@@ -1057,44 +1059,7 @@ body {
 
 /* 移动端设置弹窗专属优化 (完全消除折行挤压) */
 @media (max-width: 720px) {
-  .modal-settings {
-    height: 92vh;
-    border-radius: 20px 20px 0 0;
-    max-height: 92vh;
-    margin-top: auto;
-  }
-  .settings-layout {
-    flex-direction: column;
-  }
-  .settings-sidebar {
-    width: 100%;
-    border-right: none;
-    border-bottom: 1px solid var(--border);
-    flex-direction: row;
-    padding: 8px 12px;
-    gap: 6px;
-    overflow-x: auto;
-    overflow-y: hidden;
-    -webkit-overflow-scrolling: touch;
-  }
-  .settings-sidebar-group {
-    flex-direction: row;
-    gap: 6px;
-    flex-shrink: 0;
-  }
-  .settings-sidebar-title {
-    display: none;
-  }
-  .settings-nav-btn {
-    width: auto;
-    padding: 6px 14px;
-    font-size: 12.5px;
-    border-radius: 20px;
-    flex-shrink: 0;
-  }
-  .settings-main {
-    padding: 16px 14px;
-  }
+/* 由 bottom-sheet 规则统一接管 */
 }
 
 /* 分组面板 */
@@ -1541,6 +1506,126 @@ body.board-mode .event-card {
 }
 body.board-mode .event-card .ev-days-num {
   font-size: 30px;
+}
+
+/* ==============================================================================
+   UI/UX Pro Max 规范：响应式断点与移动端专属优化 (Mobile Drawer & Card Feeds)
+   ============================================================================== */
+
+/* 桌面端 vs 移动端专属视图切换 */
+.desktop-only-table {
+  display: block;
+}
+.mobile-only-card-feed {
+  display: none !important;
+}
+
+@media (max-width: 680px) {
+  .desktop-only-table {
+    display: none !important;
+  }
+  .mobile-only-card-feed {
+    display: flex !important;
+  }
+
+  /* 底部抽屉 Bottom Sheet 规范化 */
+  .modal-overlay {
+    align-items: flex-end !important;
+    padding: 0 !important;
+  }
+
+  .modal-settings {
+    width: 100vw !important;
+    max-width: 100vw !important;
+    height: 88vh !important;
+    max-height: 88vh !important;
+    border-radius: 20px 20px 0 0 !important;
+    margin: 0 !important;
+    border-left: none !important;
+    border-right: none !important;
+    border-bottom: none !important;
+  }
+
+  .settings-layout {
+    flex-direction: column !important;
+  }
+
+  /* 侧边栏转为丝滑横向滑轨 */
+  .settings-sidebar {
+    width: 100% !important;
+    border-right: none !important;
+    border-bottom: 1px solid var(--border) !important;
+    flex-direction: row !important;
+    padding: 8px 12px !important;
+    gap: 8px !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    -webkit-overflow-scrolling: touch !important;
+    flex-shrink: 0 !important;
+  }
+
+  .settings-sidebar-group {
+    flex-direction: row !important;
+    gap: 8px !important;
+    flex-shrink: 0 !important;
+  }
+
+  .settings-sidebar-title {
+    display: none !important;
+  }
+
+  .settings-nav-btn {
+    width: auto !important;
+    padding: 7px 14px !important;
+    font-size: 13px !important;
+    border-radius: 20px !important;
+    flex-shrink: 0 !important;
+    white-space: nowrap !important;
+  }
+
+  .settings-main {
+    padding: 16px 14px calc(24px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+
+  /* 通用表单与按钮通栏流式堆叠 */
+  .form-row {
+    flex-direction: column !important;
+    gap: 0 !important;
+  }
+
+  .form-input, .form-select, .form-textarea {
+    font-size: 16px !important; /* 遵循 iOS 防缩放基准 */
+    min-height: 44px !important; /* 遵循 44px 移动触控基准 */
+  }
+
+  .settings-actions-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    width: 100%;
+  }
+
+  .btn-full {
+    width: 100% !important;
+    min-height: 44px !important;
+    font-size: 14px !important;
+    white-space: nowrap !important;
+  }
+
+  .log-header-stack {
+    flex-direction: row !important;
+    align-items: center !important;
+  }
+
+  .log-filter-bar {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 8px !important;
+  }
+
+  .log-filter-bar select {
+    width: 100% !important;
+  }
 }
 
 /* 空状态 */

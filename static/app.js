@@ -1,4 +1,4 @@
-/* DaysHub 时光看板 — 前端逻辑 v2.3.0 */
+/* DaysHub 时光看板 — 前端逻辑 v2.3.1 (UI/UX Pro Max 规范) */
 let dashboardData = null;
 let currentTab = 'all';
 let searchResults = null;
@@ -1018,27 +1018,32 @@ async function loadBackupFileList() {
         container.innerHTML = '<p class="modal-desc">暂无备份快照文件</p>';
         return;
       }
-      let html = '<div style="display:flex; flex-direction:column; gap:8px;">';
+      let html = '<div style=\"display:flex; flex-direction:column; gap:10px;\">';
       for (const f of files) {
         const sizeKb = (f.size / 1024).toFixed(1);
         const token = getToken() || '';
         const dlUrl = `/api/backup/download/${encodeURIComponent(f.filename)}?token=${encodeURIComponent(token)}`;
         const isDb = f.filename.endsWith('.db');
         const typeBadge = isDb
-          ? '<span style="display:inline-block; font-size:10px; font-weight:700; padding:1px 6px; border-radius:4px; background:rgba(99,102,241,0.14); color:var(--accent); margin-right:6px;">SQLITE DB</span>'
-          : '<span style="display:inline-block; font-size:10px; font-weight:700; padding:1px 6px; border-radius:4px; background:rgba(16,185,129,0.14); color:var(--success); margin-right:6px;">JSON 快照</span>';
+          ? '<span style=\"display:inline-block; font-size:10.5px; font-weight:700; padding:2px 8px; border-radius:4px; background:rgba(99,102,241,0.15); color:var(--accent);\">SQLITE 镜像</span>'
+          : '<span style=\"display:inline-block; font-size:10.5px; font-weight:700; padding:2px 8px; border-radius:4px; background:rgba(16,185,129,0.15); color:var(--success);\">JSON 快照</span>';
         html += `
-          <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 10px; background:var(--bg); border:1px solid var(--border); border-radius:8px; gap:8px;">
-            <div style="min-width:0; flex:1;">
-              <div style="display:flex; align-items:center; margin-bottom:2px;">
+          <div class=\"backup-item-card\" style=\"display:flex; flex-direction:column; padding:12px 14px; background:var(--bg); border:1px solid var(--border); border-radius:10px; gap:8px;\">
+            <div style=\"display:flex; justify-content:space-between; align-items:center;\">
+              <div style=\"display:flex; align-items:center; gap:6px;\">
                 ${typeBadge}
-                <span style="color:var(--text); font-weight:600; font-size:12.5px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${escapeHtml(f.filename)}">${escapeHtml(f.filename)}</span>
+                <span style=\"font-size:11.5px; color:var(--text-muted); font-family:monospace;\">${sizeKb} KB</span>
               </div>
-              <div style="color:var(--text-muted); font-size:11px;">大小: ${sizeKb} KB · 生成时间: ${new Date(f.created_at * 1000).toLocaleString()}</div>
+              <a href=\"${dlUrl}\" target=\"_blank\" download=\"${f.filename}\" class=\"btn btn-secondary btn-sm\" style=\"text-decoration:none; padding:4px 12px; font-size:12px; height:28px;\">
+                ⬇ 下载快照
+              </a>
             </div>
-            <a href="${dlUrl}" target="_blank" download="${f.filename}" class="btn btn-secondary btn-sm" style="text-decoration:none; padding:4px 10px; font-size:11.5px; white-space:nowrap; flex-shrink:0;">
-              ⬇ 下载
-            </a>
+            <div style=\"font-size:12.5px; font-weight:600; color:var(--text); word-break:break-all; font-family:monospace; line-height:1.4;\">
+              ${escapeHtml(f.filename)}
+            </div>
+            <div style=\"font-size:11px; color:var(--text-muted);\">
+              生成时间: ${new Date(f.created_at * 1000).toLocaleString()}
+            </div>
           </div>
         `;
       }
@@ -1075,8 +1080,9 @@ async function loadUserList() {
         container.innerHTML = '<p class="modal-desc">暂无用户记录</p>';
         return;
       }
-      let html = `
-        <table class="user-table">
+      let html = '<div class="desktop-only-table user-table-wrapper" style="overflow-x:auto; width:100%; border-radius:var(--radius-sm); border:1px solid var(--border);">';
+      html += `
+        <table class="user-table" style="min-width:550px; margin-top:0; border:none;">
           <thead>
             <tr>
               <th>用户名</th>
@@ -1110,7 +1116,37 @@ async function loadUserList() {
           </tr>
         `;
       }
-      html += '</tbody></table>';
+      html += '</tbody></table></div>';
+
+      // 移动端用户卡片流
+      html += '<div class="mobile-only-card-feed" style="display:flex; flex-direction:column; gap:10px;">';
+      for (const u of users) {
+        const isAdmin = u.role === 'admin';
+        const roleBadge = isAdmin ? '<span class="user-badge badge-admin">管理员</span>' : '<span class="user-badge badge-user">普通用户</span>';
+        const statusBadge = u.is_active ? '<span style="color:var(--success); font-weight:700;">● 正常</span>' : '<span style="color:var(--text-muted); font-weight:700;">○ 停用</span>';
+        const isSelf = currentUser && currentUser.id === u.id;
+        const deleteBtn = (u.username === 'admin' || isSelf) ? '' : `<button class="user-action-btn btn-danger-text" style="padding:6px 12px;" onclick="deleteUserRow(${u.id}, '${u.username}')">删除</button>`;
+
+        html += `
+          <div class="user-feed-card" style="background:var(--card-bg); border:1px solid var(--border); border-radius:10px; padding:12px 14px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+              <div style="display:flex; align-items:center; gap:8px;">
+                <span style="font-size:15px; font-weight:700; color:var(--text);">${escapeHtml(u.username)}</span>
+                ${roleBadge}
+              </div>
+              <div style="font-size:12px;">${statusBadge}</div>
+            </div>
+            <div style="font-size:12px; color:var(--text-secondary); margin-bottom:10px;">
+              昵称: ${escapeHtml(u.display_name || '-')}
+            </div>
+            <div style="display:flex; gap:8px; justify-content:flex-end; border-top:1px solid var(--border); padding-top:8px;">
+              <button class="user-action-btn" style="padding:6px 12px;" onclick="openEditUserModal(${u.id})">编辑信息</button>
+              ${deleteBtn}
+            </div>
+          </div>
+        `;
+      }
+      html += '</div>';
       container.innerHTML = html;
     } else {
       container.innerHTML = `<p class="modal-desc" style="color:var(--danger)">${data.error || '加载失败'}</p>`;
@@ -1516,46 +1552,80 @@ async function loadSystemLogs(page = 1) {
       widget: '组件'
     };
 
-    let html = `
-      <div class="log-table-wrapper" style="overflow-x:auto; width:100%; border-radius:var(--radius-sm); border:1px solid var(--border);">
-      <table class="log-table" style="min-width:650px; margin-top:0; border:none;">
-        <thead>
-          <tr>
-            <th style="width:115px; white-space:nowrap;">时间</th>
-            ${isAdmin ? '<th style="width:75px; white-space:nowrap;">操作人</th>' : ''}
-            <th style="width:60px; white-space:nowrap;">模块</th>
-            <th style="min-width:180px;">操作详情</th>
-            <th style="width:95px; white-space:nowrap;">IP 地址</th>
-            <th style="width:55px; white-space:nowrap;">状态</th>
-          </tr>
-        </thead>
-        <tbody>
+    let html = '<div class=\"desktop-only-table log-table-wrapper\" style=\"overflow-x:auto; width:100%; border-radius:var(--radius-sm); border:1px solid var(--border);\">';
+    html += `
+    <table class=\"log-table\" style=\"min-width:650px; margin-top:0; border:none;\">
+      <thead>
+        <tr>
+          <th style=\"width:115px; white-space:nowrap;\">时间</th>
+          ${isAdmin ? '<th style=\"width:75px; white-space:nowrap;\">操作人</th>' : ''}
+          <th style=\"width:60px; white-space:nowrap;\">模块</th>
+          <th style=\"min-width:180px;\">操作详情</th>
+          <th style=\"width:95px; white-space:nowrap;\">IP 地址</th>
+          <th style=\"width:55px; white-space:nowrap;\">状态</th>
+        </tr>
+      </thead>
+      <tbody>
     `;
 
     for (const log of logs) {
       const timeStr = (log.created_at || '').substring(5, 16);
-      const uStr = log.username ? escapeHtml(log.username) : '<span style="color:var(--text-muted)">系统</span>';
+      const uStr = log.username ? escapeHtml(log.username) : '<span style=\"color:var(--text-muted)\">系统</span>';
       const modStr = moduleMap[log.module] || escapeHtml(log.module || '其它');
       const isOk = log.status === 'ok';
       const statusBadge = isOk
-        ? '<span class="user-badge badge-log-ok">成功</span>'
-        : '<span class="user-badge badge-log-fail">失败</span>';
+        ? '<span class=\"user-badge badge-log-ok\">成功</span>'
+        : '<span class=\"user-badge badge-log-fail\">失败</span>';
       const details = escapeHtml(log.details || log.action);
       const ipStr = escapeHtml(log.ip || '-');
 
       html += `
         <tr>
-          <td style="color:var(--text-muted); font-size:11px; white-space:nowrap; font-family:monospace;">${escapeHtml(timeStr)}</td>
-          ${isAdmin ? `<td style="font-weight:600; white-space:nowrap;">${uStr}</td>` : ''}
-          <td style="white-space:nowrap;"><span class="user-badge badge-log-module">${modStr}</span></td>
-          <td style="word-break:break-word; line-height:1.5;">${details}</td>
-          <td style="color:var(--text-muted); font-size:11px; font-family:monospace; white-space:nowrap;">${ipStr}</td>
-          <td style="white-space:nowrap;">${statusBadge}</td>
+          <td style=\"color:var(--text-muted); font-size:11px; white-space:nowrap; font-family:monospace;\">${escapeHtml(timeStr)}</td>
+          ${isAdmin ? `<td style=\"font-weight:600; white-space:nowrap;\">${uStr}</td>` : ''}
+          <td style=\"white-space:nowrap;\"><span class=\"user-badge badge-log-module\">${modStr}</span></td>
+          <td style=\"word-break:break-word; line-height:1.5;\">${details}</td>
+          <td style=\"color:var(--text-muted); font-size:11px; font-family:monospace; white-space:nowrap;\">${ipStr}</td>
+          <td style=\"white-space:nowrap;\">${statusBadge}</td>
         </tr>
       `;
     }
-
     html += '</tbody></table></div>';
+
+    // 移动端专用信息卡片流 (Mobile Card Feed)
+    html += '<div class=\"mobile-only-card-feed\" style=\"display:flex; flex-direction:column; gap:10px;\">';
+    for (const log of logs) {
+      const timeStr = (log.created_at || '').substring(5, 16);
+      const uStr = log.username ? escapeHtml(log.username) : '系统';
+      const modStr = moduleMap[log.module] || escapeHtml(log.module || '其它');
+      const isOk = log.status === 'ok';
+      const statusColor = isOk ? 'var(--success, #10b981)' : 'var(--danger, #ef4444)';
+      const statusText = isOk ? '成功' : '失败';
+      const details = escapeHtml(log.details || log.action);
+      const ipStr = escapeHtml(log.ip || '-');
+
+      html += `
+        <div class=\"log-feed-card\" style=\"background:var(--card-bg); border:1px solid var(--border); border-radius:10px; padding:12px 14px;\">
+          <div style=\"display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;\">
+            <div style=\"display:flex; align-items:center; gap:6px;\">
+              <span class=\"user-badge badge-log-module\" style=\"font-size:11px;\">${modStr}</span>
+              ${isAdmin ? `<span style=\"font-size:12px; font-weight:700; color:var(--text);\">${uStr}</span>` : ''}
+            </div>
+            <div style=\"display:flex; align-items:center; gap:6px;\">
+              <span style=\"font-size:11px; color:${statusColor}; font-weight:700;\">● ${statusText}</span>
+              <span style=\"font-size:11px; color:var(--text-muted); font-family:monospace;\">${escapeHtml(timeStr)}</span>
+            </div>
+          </div>
+          <div style=\"font-size:13px; color:var(--text); line-height:1.5; word-break:break-word; margin-bottom:6px; background:var(--bg); padding:8px 10px; border-radius:6px;\">
+            ${details}
+          </div>
+          <div style=\"display:flex; justify-content:flex-end; font-size:10.5px; color:var(--text-muted); font-family:monospace;\">
+            IP: ${ipStr}
+          </div>
+        </div>
+      `;
+    }
+    html += '</div>';
     container.innerHTML = html;
 
     if (pagination) {

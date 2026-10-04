@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/static/style.css?v=2.3.0">
+<link rel="stylesheet" href="/static/style.css?v=2.3.1">
 </head>
 <body>
 
@@ -88,6 +88,7 @@
           <span class="brand-name">DaysHub</span>
           <span class="brand-sep">/</span>
           <span class="brand-sub">时光看板</span>
+          <span class="user-badge" style="background:rgba(220,38,38,0.12); color:var(--accent); font-size:11px; margin-left:4px;">v2.3.1</span>
         </div>
         <div class="header-actions">
           <button class="header-action-btn" onclick="openAddModal()" title="新建事件">
@@ -401,9 +402,15 @@
             </div>
           </div>
 
-          <div class="settings-actions">
-            <button class="btn btn-primary" onclick="savePushSettings()">保存配置</button>
-            <button class="btn btn-secondary" onclick="testNotify()">📨 测试发送</button>
+          <div class="settings-actions-stack" style="margin-top:18px;">
+            <button class="btn btn-primary btn-full" onclick="savePushSettings()">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
+              <span>保存通知渠道配置</span>
+            </button>
+            <button class="btn btn-secondary btn-full" onclick="testNotify()">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13"></path><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+              <span>发送测试推送消息</span>
+            </button>
           </div>
         </div>
 
@@ -445,30 +452,30 @@
           </div>
         </div>
 
-        <!-- 页面 4: 数据与备份 -->
+        <!-- 页面 2: 数据备份与恢复 -->
         <div id="subtab-backup" class="settings-page">
-          <div class="channel-group">
-            <h5 class="channel-title">数据导入与导出</h5>
-            <p class="modal-desc" style="margin-bottom:12px;">导出或恢复包含全部事件及农历字段的完整 JSON 数据。</p>
-            <div class="settings-actions" style="margin-top:0;">
-              <button class="btn btn-secondary" onclick="exportData()">
-                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-                <span>导出备份</span>
-              </button>
-              <button class="btn btn-secondary" onclick="document.getElementById('importFile').click()">
-                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
-                <span>导入文件</span>
-              </button>
-            </div>
-          </div>
+        <div class="channel-group">
+        <h5 class="channel-title">数据导入与导出</h5>
+        <p class="modal-desc" style="margin-bottom:12px;">导出或恢复包含全部事件及农历字段的完整 JSON 数据。</p>
+        <div class="settings-actions-stack">
+          <button class="btn btn-secondary btn-full" onclick="exportData()">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+            <span>导出全部事件备份 (JSON)</span>
+          </button>
+          <button class="btn btn-secondary btn-full" onclick="document.getElementById('importFile').click()">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+            <span>从 JSON 文件导入事件</span>
+          </button>
+        </div>
+        </div>
 
-          <div class="channel-group">
-            <h5 class="channel-title">历史全量备份归档</h5>
-            <p class="modal-desc" style="margin-bottom:8px;">可下载历史数据库快照 (.db) 与离线完整数据包 (.json)。</p>
-            <div id="backupFileListContainer" style="max-height:160px; overflow-y:auto; border:1px solid var(--border); border-radius:var(--radius-sm); padding:6px 10px; background:var(--card-bg); font-size:12px;">
-              <p class="modal-desc">加载备份列表中...</p>
-            </div>
-          </div>
+        <div class="channel-group">
+        <h5 class="channel-title">历史全量备份归档</h5>
+        <p class="modal-desc" style="margin-bottom:8px;">可下载历史数据库快照 (.db) 与离线完整数据包 (.json)。</p>
+        <div id="backupFileListContainer" style="max-height:240px; overflow-y:auto; border:1px solid var(--border); border-radius:var(--radius-sm); padding:8px; background:var(--card-bg); font-size:12px;">
+          <p class="modal-desc">加载备份列表中...</p>
+        </div>
+        </div>
 
           <div class="channel-group admin-only" id="backupStrategySection" style="display:none;">
             <h5 class="channel-title">自定义备份策略 (管理员)</h5>
@@ -543,8 +550,8 @@
         <div id="subtab-logs" class="settings-page">
           <div class="channel-group">
             <div style="margin-bottom:14px;">
-              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; flex-wrap:wrap; gap:8px;">
-                <h5 class="channel-title" style="margin-bottom:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" id="logTitleHeader">操作审计日志</h5>
+              <div class="log-header-stack" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; gap:8px;">
+                <h5 class="channel-title" style="margin-bottom:0;" id="logTitleHeader">操作审计日志</h5>
                 <div style="display:flex; gap:8px;">
                   <button class="btn btn-secondary btn-sm" onclick="refreshCurrentLogs()">🔄 刷新</button>
                   <button class="btn btn-danger btn-sm admin-only" id="btnClearLogsBtn" onclick="clearSystemLogsPrompt()" style="display:none;">🗑️ 清理日志</button>
@@ -561,17 +568,17 @@
             <!-- 视图 A: 操作审计日志 -->
             <div id="logAuditView">
               <!-- 日志过滤栏 -->
-              <div class="log-filter-bar" style="display:flex; gap:8px; margin-bottom:12px; flex-wrap:wrap; align-items:center;">
-                <select id="logFilterModule" class="form-select" style="width:auto; min-width:110px; padding:7px 10px; font-size:13px;" onchange="loadSystemLogs(1)">
+              <div class="log-filter-bar" style="display:flex; gap:8px; margin-bottom:12px; align-items:center;">
+                <select id="logFilterModule" class="form-select" style="width:120px; flex-shrink:0; padding:8px 10px; font-size:13px;" onchange="loadSystemLogs(1)">
                   <option value="">全部模块</option>
                   <option value="auth">认证/登录</option>
                   <option value="event">事件操作</option>
                   <option value="user">用户管理</option>
                   <option value="system">系统/备份</option>
                 </select>
-                <div style="flex:1; min-width:160px; display:flex; gap:6px;">
-                  <input type="text" id="logKeyword" class="form-input" style="padding:7px 12px; font-size:13px;" placeholder="搜索用户 / 详情 / IP..." onkeydown="if(event.key==='Enter')loadSystemLogs(1)">
-                  <button class="btn btn-primary btn-sm" style="padding:0 14px;" onclick="loadSystemLogs(1)">查询</button>
+                <div style="flex:1; display:flex; gap:6px;">
+                  <input type="text" id="logKeyword" class="form-input" style="padding:8px 12px; font-size:13px;" placeholder="搜索用户 / 详情 / IP..." onkeydown="if(event.key==='Enter')loadSystemLogs(1)">
+                  <button class="btn btn-primary btn-sm" style="padding:0 14px; flex-shrink:0;" onclick="loadSystemLogs(1)">查询</button>
                 </div>
               </div>
 
@@ -727,6 +734,6 @@
   </footer>
 </div>
 
-<script src="/static/app.js?v=2.3.0"></script>
+<script src="/static/app.js?v=2.3.1"></script>
 </body>
 </html>
