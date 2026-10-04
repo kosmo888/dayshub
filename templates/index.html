@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/static/style.css?v=2.3.1">
+<link rel="stylesheet" href="/static/style.css?v=2.3.2">
 </head>
 <body>
 
@@ -88,12 +88,12 @@
           <span class="brand-name">DaysHub</span>
           <span class="brand-sep">/</span>
           <span class="brand-sub">时光看板</span>
-          <span class="user-badge" style="background:rgba(220,38,38,0.12); color:var(--accent); font-size:11px; margin-left:4px;">v2.3.1</span>
+          <span class="user-badge" style="background:rgba(79,70,229,0.12); color:var(--primary); font-size:11px; margin-left:4px;">v2.3.2</span>
         </div>
         <div class="header-actions">
           <button class="header-action-btn" onclick="openAddModal()" title="新建事件">
             <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-            <span>新事件</span>
+            <span>新建</span>
           </button>
         </div>
       </div>
@@ -174,14 +174,6 @@
     </div>
     <div id="tab-stats" class="tab-content"></div>
   </main>
-
-  <!-- 浮动添加按钮 (FAB 针对移动端补充) -->
-  <button class="fab" id="fabBtn" onclick="openAddModal()" title="添加新事件">
-    <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-      <line x1="12" y1="5" x2="12" y2="19"></line>
-      <line x1="5" y1="12" x2="19" y2="12"></line>
-    </svg>
-  </button>
 
   <!-- 添加/编辑弹窗 -->
   <div class="modal-overlay" id="modalOverlay" style="display:none">
@@ -319,7 +311,7 @@
       <div class="modal-header">
         <div style="display:flex; align-items:center; gap:8px;">
           <h3 style="margin:0;">⚙️ 系统设置中心</h3>
-          <span style="font-size:11px; font-weight:600; padding:2px 7px; border-radius:10px; background:rgba(99,102,241,0.15); color:var(--accent); letter-spacing:0.5px;">v2.3.0</span>
+          <span style="font-size:11px; font-weight:600; padding:2px 7px; border-radius:10px; background:rgba(79,70,229,0.12); color:var(--primary); letter-spacing:0.5px;">v2.3.2</span>
         </div>
         <button class="modal-close" onclick="document.getElementById('settingsModal').style.display='none'">✕</button>
       </div>
@@ -456,7 +448,7 @@
         <div id="subtab-backup" class="settings-page">
         <div class="channel-group">
         <h5 class="channel-title">数据导入与导出</h5>
-        <p class="modal-desc" style="margin-bottom:12px;">导出或恢复包含全部事件及农历字段的完整 JSON 数据。</p>
+        <p class="modal-desc" style="margin-bottom:12px;">导出或恢复全部事件的 JSON 格式备份数据。</p>
         <div class="settings-actions-stack">
           <button class="btn btn-secondary btn-full" onclick="exportData()">
             <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
@@ -734,6 +726,6 @@
   </footer>
 </div>
 
-<script src="/static/app.js?v=2.3.1"></script>
+<script src="/static/app.js?v=2.3.2"></script>
 </body>
 </html>

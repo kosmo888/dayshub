@@ -1,5 +1,5 @@
 /* ==============================================================================
-   DaysHub · 现代极客工程设计系统 (Inspired by Popular Web Designs: Linear & Vercel) v2.3.0
+   DaysHub · 现代极客工程设计系统 (Inspired by Popular Web Designs: Linear & Vercel) v2.3.2
    核心设计原则：
    1. 深色原生质感 (Dark-First)：纯黑基底、多阶半透明白色描边、极低饱和度但高辨识度色彩
    2. 极简字体排版 (Precision Typography)：Inter 字体栈、紧凑字距 (tight letter-spacing)
@@ -8,11 +8,11 @@
    ============================================================================== */
 
 :root {
-  /* 品牌核心主色 (Swiss Focus Red & Accent Emerald) */
-  --primary: #dc2626;
-  --primary-hover: #ef4444;
-  --primary-glow: #f87171;
-  --primary-rgb: 220, 38, 38;
+  /* 品牌核心主色 (Linear Indigo / Swiss Precision) */
+  --primary: #4f46e5;
+  --primary-hover: #4338ca;
+  --primary-glow: #818cf8;
+  --primary-rgb: 79, 70, 229;
   
   /* 基础表面 (Light Mode Context) */
   --bg: #f8fafc;
@@ -21,28 +21,28 @@
   --card-bg-translucent: rgba(255, 255, 255, 0.88);
   --border: #e2e8f0;
   --border-subtle: rgba(0, 0, 0, 0.06);
-  --border-focus: #dc2626;
+  --border-focus: #4f46e5;
   
-  /* 文本阶梯 (Light Mode) */
+  /* 文本阶梯 (Light Mode) - 提升对比度符合 WCAG 2.2 AA (4.5:1) */
   --text: #0f172a;
   --text-secondary: #475569;
-  --text-muted: #94a3b8;
+  --text-muted: #64748b;
   --text-inverse: #ffffff;
   
-  /* 功能状态色 */
-  --accent: #dc2626;
-  --accent-hover: #ef4444;
+  /* 功能状态色 (语义色严格区分) */
+  --accent: #4f46e5;
+  --accent-hover: #4338ca;
   --danger: #ef4444;
   --danger-bg: rgba(239, 68, 68, 0.08);
-  --success: #059669;
-  --success-bg: rgba(5, 150, 105, 0.08);
+  --success: #10b981;
+  --success-bg: rgba(16, 185, 129, 0.08);
   --warning: #f59e0b;
   --warning-bg: rgba(245, 158, 11, 0.08);
   
   /* 渐变微光系统 */
-  --primary-gradient: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
-  --hero-gradient: linear-gradient(135deg, rgba(220, 38, 38, 0.06) 0%, rgba(255, 255, 255, 0.9) 100%);
-  --card-border-glow: linear-gradient(135deg, rgba(220, 38, 38, 0.4) 0%, rgba(0, 0, 0, 0.06) 100%);
+  --primary-gradient: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%);
+  --hero-gradient: linear-gradient(135deg, rgba(79, 70, 229, 0.06) 0%, rgba(255, 255, 255, 0.9) 100%);
+  --card-border-glow: linear-gradient(135deg, rgba(79, 70, 229, 0.4) 0%, rgba(0, 0, 0, 0.06) 100%);
   
   /* 层次阴影系统 */
   --shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
@@ -63,13 +63,13 @@
    ============================================================================== */
 [data-theme="dark"] {
   /* 纯黑深色分层 */
-  --bg: #0f172a;                  /* Swiss Slate Canvas */
+  --bg: #0f172a;                  /* Deep Slate Canvas */
   --bg-subtle: #1e293b;           /* Panel Slate */
   --card-bg: #192134;             /* Elevated Level 3 Surface */
   --card-bg-translucent: rgba(25, 33, 52, 0.88);
   --border: rgba(255, 255, 255, 0.08); /* Moonlight Subtle Border */
   --border-subtle: rgba(255, 255, 255, 0.04);
-  --border-focus: #ef4444;
+  --border-focus: #6366f1;
   
   /* 文本阶梯 */
   --text: #f8fafc;                /* Near-White Non-Glare */
@@ -78,24 +78,24 @@
   --text-inverse: #ffffff;
   
   /* 功能状态色 */
-  --accent: #ef4444;
-  --accent-hover: #f87171;
-  --danger: #f87171;
+  --accent: #6366f1;
+  --accent-hover: #818cf8;
+  --danger: #ef4444;
   --danger-bg: rgba(239, 68, 68, 0.15);
   --success: #10b981;
   --success-bg: rgba(16, 185, 129, 0.15);
   
   /* 渐变微光系统 */
-  --primary-gradient: linear-gradient(135deg, #dc2626 0%, #ef4444 100%);
-  --hero-gradient: linear-gradient(135deg, rgba(220, 38, 38, 0.14) 0%, rgba(25, 33, 52, 0.95) 100%);
-  --card-border-glow: linear-gradient(135deg, rgba(239, 68, 68, 0.35) 0%, rgba(255, 255, 255, 0.05) 100%);
+  --primary-gradient: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%);
+  --hero-gradient: linear-gradient(135deg, rgba(79, 70, 229, 0.14) 0%, rgba(25, 33, 52, 0.95) 100%);
+  --card-border-glow: linear-gradient(135deg, rgba(99, 102, 241, 0.35) 0%, rgba(255, 255, 255, 0.05) 100%);
   
   /* 层次阴影系统 */
   --shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.5);
   --shadow-md: 0 4px 16px -2px rgba(0, 0, 0, 0.6);
   --shadow-lg: 0 12px 36px -4px rgba(0, 0, 0, 0.75);
   --shadow-xl: 0 24px 50px -8px rgba(0, 0, 0, 0.9);
-  --shadow-glow: 0 0 30px rgba(220, 38, 38, 0.22);
+  --shadow-glow: 0 0 30px rgba(99, 102, 241, 0.22);
 }
 
 /* 全局基底 */
@@ -251,6 +251,8 @@ body {
   font-size: 12.5px;
   font-weight: 600;
   cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
   transition: all .16s ease;
 }
 .header-action-btn:hover {
@@ -299,6 +301,33 @@ body {
   font-weight: 600;
   color: var(--text-secondary);
   margin-bottom: 7px;
+  gap: 8px;
+}
+.progress-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 700;
+  color: var(--text);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.progress-meta {
+  font-size: 11.5px;
+  color: var(--text-secondary);
+  text-align: right;
+  white-space: nowrap;
+}
+@media (max-width: 600px) {
+  .progress-label {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
+  .progress-meta {
+    text-align: left;
+    white-space: normal;
+  }
 }
 .progress-bar {
   background: var(--border);
@@ -495,12 +524,14 @@ body {
 }
 .search-input {
   width: 100%;
-  padding: 9.5px 14px 9.5px 38px !important;
+  height: 42px;
+  padding: 0 14px 0 38px !important;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   font-size: 13.5px;
   background: var(--card-bg);
   color: var(--text);
+  box-sizing: border-box;
   transition: all .16s ease;
 }
 .search-input:focus {
@@ -509,13 +540,15 @@ body {
   box-shadow: 0 0 0 3px rgba(var(--primary-rgb), 0.15);
 }
 .search-select {
-  padding: 9.5px 14px;
+  height: 42px;
+  padding: 0 14px;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   font-size: 13.5px;
   background: var(--card-bg);
   color: var(--text);
   cursor: pointer;
+  box-sizing: border-box;
   transition: border-color .16s;
 }
 
@@ -562,24 +595,49 @@ body {
   opacity: 0.8;
 }
 
-/* 排序工具栏 */
+/* 标签内容面板容器 (修复全部 Tab 默认展开堆叠的 P0 问题) */
+.tab-content {
+  display: none;
+}
+.tab-content.active {
+  display: block;
+}
+
+/* 排序工具栏 (胶囊式高触控标准优化) */
 .sort-bar {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-bottom: 12px;
-  font-size: 12px;
+  margin-bottom: 14px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 2px 0 4px;
+}
+.sort-bar::-webkit-scrollbar {
+  display: none;
+}
+.sort-label {
+  white-space: nowrap;
+  flex-shrink: 0;
+  font-size: 12.5px;
+  font-weight: 600;
   color: var(--text-muted);
 }
 .sort-btn {
-  padding: 3px 9px;
-  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 14px;
+  min-height: 36px;
+  border-radius: 18px;
   border: 1px solid var(--border);
   background: var(--card-bg);
   color: var(--text-secondary);
-  font-size: 11.5px;
+  font-size: 12.5px;
   font-weight: 500;
   cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
   transition: all .15s ease;
 }
 .sort-btn:hover {
@@ -855,38 +913,9 @@ body {
   background: var(--danger-bg) !important;
 }
 
-/* 浮动添加按钮 */
+/* 浮动添加按钮 (底部 Dock 已内建高频新增入口，隐藏 FAB 消除重叠与视口遮挡) */
 .fab {
-  position: fixed;
-  bottom: 84px;
-  right: calc(50% - 410px);
-  width: 50px;
-  height: 50px;
-  border-radius: 50%;
-  background: var(--primary);
-  color: #ffffff;
-  border: none;
-  box-shadow: 0 8px 24px rgba(var(--primary-rgb), 0.4);
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 90;
-  transition: transform .2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow .2s;
-}
-.fab:hover {
-  transform: scale(1.08) rotate(90deg);
-  background: var(--primary-hover);
-  box-shadow: 0 12px 28px rgba(var(--primary-rgb), 0.5);
-}
-.fab:active {
-  transform: scale(0.95);
-}
-@media (max-width: 880px) {
-  .fab {
-    right: 20px;
-    bottom: 84px;
-  }
+  display: none !important;
 }
 
 /* ==============================================================================
@@ -1628,10 +1657,10 @@ body.board-mode .event-card .ev-days-num {
   }
 }
 
-/* 空状态 */
+/* 空状态 (提升对比度符合 WCAG AA 规范) */
 .empty {
   text-align: center;
-  color: var(--text-muted);
+  color: var(--text-secondary);
   padding: 60px 20px;
   font-size: 14.5px;
   font-weight: 500;

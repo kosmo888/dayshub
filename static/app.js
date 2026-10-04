@@ -1,4 +1,4 @@
-/* DaysHub 时光看板 — 前端逻辑 v2.3.1 (UI/UX Pro Max 规范) */
+/* DaysHub 时光看板 — 前端逻辑 v2.3.2 (UI/UX Pro Max 规范) */
 let dashboardData = null;
 let currentTab = 'all';
 let searchResults = null;
@@ -328,15 +328,25 @@ function renderHeader() {
   document.getElementById('progressBars').innerHTML = `
     <div class="progress-item">
       <div class="progress-label">
-        <span>📊 年度时间胶囊</span>
-        <span>已过 ${yp.passed}/${yp.total} 天 · 剩 ${yp.remaining} 天 (仅剩 ${weekendsLeft} 个周末) · ${yp.percent}%</span>
+        <div class="progress-title">
+          <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+          <span>年度时间胶囊</span>
+        </div>
+        <div class="progress-meta">
+          <span>已过 ${yp.passed}/${yp.total} 天 · 剩 ${yp.remaining} 天 (剩 ${weekendsLeft} 周末) · <b>${yp.percent}%</b></span>
+        </div>
       </div>
       <div class="progress-bar"><div class="progress-fill" style="width:${yp.percent}%"></div></div>
     </div>
     <div class="progress-item">
       <div class="progress-label">
-        <span>📅 本月进度</span>
-        <span>${mp.passed}/${mp.total} 天 · 剩 ${mp.remaining} 天 · ${mp.percent}%</span>
+        <div class="progress-title">
+          <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+          <span>本月进度</span>
+        </div>
+        <div class="progress-meta">
+          <span>${mp.passed}/${mp.total} 天 · 剩 ${mp.remaining} 天 · <b>${mp.percent}%</b></span>
+        </div>
       </div>
       <div class="progress-bar"><div class="progress-fill" style="width:${mp.percent}%"></div></div>
     </div>`;
