@@ -1,4 +1,4 @@
-/* DaysHub 时光看板 — 前端逻辑 v2.3.2 (UI/UX Pro Max 规范) */
+/* DaysHub 时光看板 — 前端逻辑 v2.3.3 */
 let dashboardData = null;
 let currentTab = 'all';
 let searchResults = null;
@@ -321,7 +321,7 @@ function renderHeader() {
   const lunar = d.lunar.chinese_str || '';
   const term = d.solar_term ? ` · 🌿 ${d.solar_term}` : '';
   document.getElementById('dateInfo').innerHTML =
-    `${d.date} · ${lunar} · ${d.shengxiao}年${d.ganzhi}${term}`;
+    `<span class="date-main">${d.date}</span><span class="date-sep">·</span><span>${lunar}</span><span class="date-sep">·</span><span>${d.shengxiao}年${d.ganzhi}${term}</span>`;
   const yp = d.year_progress;
   const mp = d.month_progress;
   const weekendsLeft = getRemainingWeekends();
@@ -329,11 +329,12 @@ function renderHeader() {
     <div class="progress-item">
       <div class="progress-label">
         <div class="progress-title">
-          <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
-          <span>年度时间胶囊</span>
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+          <span>年度胶囊</span>
         </div>
         <div class="progress-meta">
-          <span>已过 ${yp.passed}/${yp.total} 天 · 剩 ${yp.remaining} 天 (剩 ${weekendsLeft} 周末) · <b>${yp.percent}%</b></span>
+          <span class="progress-stats">已过 <b>${yp.passed}</b>/${yp.total}天 · 剩 <b>${yp.remaining}</b>天 (${weekendsLeft}周末)</span>
+          <span class="progress-pct">${yp.percent}%</span>
         </div>
       </div>
       <div class="progress-bar"><div class="progress-fill" style="width:${yp.percent}%"></div></div>
@@ -341,11 +342,12 @@ function renderHeader() {
     <div class="progress-item">
       <div class="progress-label">
         <div class="progress-title">
-          <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
           <span>本月进度</span>
         </div>
         <div class="progress-meta">
-          <span>${mp.passed}/${mp.total} 天 · 剩 ${mp.remaining} 天 · <b>${mp.percent}%</b></span>
+          <span class="progress-stats">已过 <b>${mp.passed}</b>/${mp.total}天 · 剩 <b>${mp.remaining}</b>天</span>
+          <span class="progress-pct">${mp.percent}%</span>
         </div>
       </div>
       <div class="progress-bar"><div class="progress-fill" style="width:${mp.percent}%"></div></div>
@@ -395,13 +397,13 @@ function renderHeroFocus() {
     <div class="hero-focus-left">
       <span class="hero-focus-icon">${heroEv.icon || '⏳'}</span>
       <div class="hero-focus-info">
-        <span class="hero-focus-tag" style="background:${heroEv.color || 'var(--accent)'};">${tagText}</span>
+        <span class="hero-focus-tag">${tagText}</span>
         <div class="hero-focus-title">${escapeHtml(heroEv.title)}</div>
         <div class="hero-focus-sub">${escapeHtml(subText)}${escapeHtml(noteStr)}</div>
       </div>
     </div>
     <div class="hero-focus-right">
-      <div class="hero-focus-num" style="color:${heroEv.color || 'var(--accent)'};">${isTodayHero ? '今日' : heroEv.days_remaining}</div>
+      <div class="hero-focus-num">${isTodayHero ? '今日' : heroEv.days_remaining}</div>
       <div class="hero-focus-unit">${isTodayHero ? '' : '天后'}</div>
     </div>
   `;
