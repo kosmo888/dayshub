@@ -575,7 +575,7 @@ body {
   transition: border-color .16s;
 }
 
-/* 标签切换栏 (Tabs) */
+/* 标签切换栏 (Tabs) — 手机端可滑动，不截断挤压 */
 .tabs {
   display: flex;
   gap: 4px;
@@ -585,6 +585,8 @@ body {
   border-radius: var(--radius-sm);
   margin-bottom: 16px;
   overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
 }
 .tabs::-webkit-scrollbar {
   display: none;
@@ -605,6 +607,13 @@ body {
   cursor: pointer;
   transition: all .15s ease;
   white-space: nowrap;
+}
+@media (max-width: 480px) {
+  .tab {
+    flex: 0 0 auto;      /* 手机端取消平分挤压，按内容自然宽度 */
+    min-width: 72px;     /* 保证触控区 */
+    padding: 8px 14px;
+  }
 }
 .tab:hover {
   color: var(--text);
@@ -1064,6 +1073,25 @@ body {
 .modal-body {
   padding: 20px 24px;
   overflow-y: auto;
+}
+@media (max-width: 480px) {
+  .modal-body {
+    padding: 16px 18px;   /* 手机端表单两侧呼吸边距，不贴边 */
+  }
+}
+
+/* 直接挂在 .modal 下的表单（事件/分类/用户弹窗）统一内边距与滚动，避免贴边与底部截断 */
+.modal > form {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 20px 24px;
+  box-sizing: border-box;
+}
+@media (max-width: 480px) {
+  .modal > form {
+    padding: 16px 18px calc(26px + env(safe-area-inset-bottom, 0px));
+  }
 }
 .modal-desc {
   font-size: 13px;
@@ -1773,13 +1801,13 @@ body.board-mode .event-card .ev-days-num {
     border-bottom: none !important;
     border-left: none !important;
     border-right: none !important;
-    width: 100vw !important;
-    max-width: 100vw !important;
+    width: 100% !important;
+    max-width: 100% !important;
   }
 
   .modal-settings {
-    width: 100vw !important;
-    max-width: 100vw !important;
+    width: 100% !important;
+    max-width: 100% !important;
     height: 88vh !important;
     max-height: 88vh !important;
     border-radius: 20px 20px 0 0 !important;

@@ -12,7 +12,7 @@ function togglePasswordVisibility(inputId, btnEl) {
   }
 }
 
-/* DaysHub 时光看板 — 前端逻辑 v2.4.1 */
+/* DaysHub 时光看板 — 前端逻辑 v2.4.2 */
 let dashboardData = null;
 let currentTab = 'all';
 let searchResults = null;
