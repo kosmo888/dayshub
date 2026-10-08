@@ -806,6 +806,50 @@ body {
   transform: translateY(0);
   pointer-events: auto;
 }
+
+/* 选中态：单击卡片后高亮描边并展开操作栏（移动端无 hover，靠此交互） */
+.event-card.selected {
+  border-color: var(--primary) !important;
+  box-shadow: 0 0 0 2px rgba(var(--primary-rgb), 0.18), var(--shadow-md) !important;
+  background: linear-gradient(90deg, rgba(var(--primary-rgb), 0.06) 0%, var(--card-bg) 70%) !important;
+}
+.event-card.selected .card-quick-actions {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+@media (hover: none) {
+  /* 触屏设备：不用 hover 显示操作栏，改由 .selected 控制，避免误显与遮挡标题 */
+  .event-card:hover .card-quick-actions {
+    opacity: 0;
+    pointer-events: none;
+  }
+  /* 选中后操作栏改为卡片底部独立一行，绝不覆盖标题与天数 */
+  .event-card.selected {
+    flex-wrap: wrap;
+  }
+  .event-card.selected .card-quick-actions {
+    position: static;
+    order: 99;
+    width: 100%;
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid var(--border-subtle);
+    border-radius: 0;
+    box-shadow: none;
+    background: transparent;
+    justify-content: flex-end;
+    opacity: 1;
+    transform: none;
+    pointer-events: auto;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .card-quick-actions,
+  .event-card {
+    transition: none !important;
+  }
+}
 .card-action-btn {
   width: 28px;
   height: 28px;
@@ -831,6 +875,13 @@ body {
 .card-action-btn.danger:hover {
   background: rgba(239, 68, 68, 0.12);
   border-color: #ef4444;
+}
+/* 触屏设备：操作按钮加大到易点尺寸（放在基础规则之后以生效） */
+@media (hover: none) {
+  .card-action-btn {
+    width: 36px;
+    height: 36px;
+  }
 }
 
 /* 里程碑点状栏 */
@@ -988,6 +1039,15 @@ body {
     bottom: calc(88px + env(safe-area-inset-bottom, 0px));
     right: 14px;
   }
+}
+/* 滚动时淡化缩小，避免遮挡经过的卡片内容；停止滚动后自动恢复 */
+.fab.scrolling {
+  opacity: .3;
+  transform: scale(.8);
+  box-shadow: none;
+}
+.fab {
+  transition: transform .2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow .2s, opacity .2s;
 }
 @media (prefers-reduced-motion: reduce) {
   .fab,

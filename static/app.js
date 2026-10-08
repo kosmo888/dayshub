@@ -12,7 +12,7 @@ function togglePasswordVisibility(inputId, btnEl) {
   }
 }
 
-/* DaysHub 时光看板 — 前端逻辑 v2.4.3 */
+/* DaysHub 时光看板 — 前端逻辑 v2.4.5 */
 let dashboardData = null;
 let currentTab = 'all';
 let searchResults = null;
@@ -404,9 +404,11 @@ function renderHeroFocus() {
   const subText = heroEv.lunar_str || (heroEv.next_date ? `公历 ${heroEv.next_date}` : heroEv.date);
   const noteStr = heroEv.note ? ` · 📝 ${heroEv.note}` : '';
 
+  // Hero 卡容器本身已是 .hero-focus-card，仅补选中态所需的定位属性
   card.style.borderColor = 'var(--border)';
   card.style.borderLeftColor = heroEv.color || 'var(--primary)';
-  card.onclick = () => editEvent(heroEv.id);
+  card.setAttribute('data-ev-id', heroEv.id);
+  card.onclick = () => onCardClick(null, heroEv.id);
 
   card.innerHTML = `
     <div class="hero-focus-left">
@@ -640,7 +642,7 @@ function renderEventCard(ev) {
   } else { daysHtml = ''; }
 
   const evAccentColor = ev.color || 'var(--primary)';
-  return `<div class="event-card ${ev.is_pinned ? 'pinned' : ''} ${urgencyCls}" style="--ev-custom-color:${evAccentColor}; border-left-color:${evAccentColor};" onclick="editEvent(${ev.id})">
+  return `<div class="event-card ${ev.is_pinned ? 'pinned' : ''} ${urgencyCls}" data-ev-id="${ev.id}" style="--ev-custom-color:${evAccentColor}; border-left-color:${evAccentColor};" onclick="onCardClick(event, ${ev.id})">
     <div class="card-quick-actions" onclick="event.stopPropagation()">
       <button class="card-action-btn" title="${ev.is_pinned ? '取消置顶' : '置顶'}" onclick="quickTogglePin(${ev.id}, ${ev.is_pinned ? 0 : 1})">
         <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 17v5M9 2h6l-1 7h3l-5 8-5-8h3z"/></svg>
@@ -674,7 +676,7 @@ function renderAccumCard(ev) {
     }).join('')}</div>`;
   }
   const evAccentColor = ev.color || 'var(--primary)';
-  return `<div class="event-card ${ev.is_pinned ? 'pinned' : ''}" style="--ev-custom-color:${evAccentColor}; border-left-color:${evAccentColor};" onclick="editEvent(${ev.id})">
+  return `<div class="event-card ${ev.is_pinned ? 'pinned' : ''}" data-ev-id="${ev.id}" style="--ev-custom-color:${evAccentColor}; border-left-color:${evAccentColor};" onclick="onCardClick(event, ${ev.id})">
     <div class="card-quick-actions" onclick="event.stopPropagation()">
       <button class="card-action-btn" title="${ev.is_pinned ? '取消置顶' : '置顶'}" onclick="quickTogglePin(${ev.id}, ${ev.is_pinned ? 0 : 1})">
         <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 17v5M9 2h6l-1 7h3l-5 8-5-8h3z"/></svg>
@@ -793,6 +795,7 @@ async function editEvent(id) {
   const events = await resp.json();
   const ev = events.find(e => e.id === id);
   if (!ev) return;
+  clearCardSelection();
   document.getElementById('modalTitle').textContent = '编辑事件';
   document.getElementById('evId').value = ev.id;
   document.getElementById('evTitle').value = ev.title;
@@ -822,6 +825,55 @@ async function editEvent(id) {
 function closeModal() {
   document.getElementById('modalOverlay').style.display = 'none';
 }
+
+// ========== 事件卡片选中态交互 ==========
+// 单击卡片：选中并展开操作栏（不进入编辑）；再次单击同一张卡片：进入编辑；点击空白：取消选中
+let _selectedCardId = null;
+
+function clearCardSelection() {
+  if (_selectedCardId === null) return;
+  const prev = document.querySelector(`.event-card[data-ev-id="${_selectedCardId}"]`);
+  if (prev) prev.classList.remove('selected');
+  _selectedCardId = null;
+}
+
+function onCardClick(e, id) {
+  if (e) e.stopPropagation();
+  // 点击的是卡片内操作按钮（置顶/编辑/删除），放行
+  if (e && e.target.closest && e.target.closest('.card-quick-actions')) return;
+  if (_selectedCardId === id) {
+    editEvent(id);
+    return;
+  }
+  clearCardSelection();
+  _selectedCardId = id;
+  const card = document.querySelector(`.event-card[data-ev-id="${id}"]`);
+  if (card) card.classList.add('selected');
+}
+
+// 点击页面空白处取消选中
+document.addEventListener('click', (e) => {
+  if (!e.target.closest || !e.target.closest('.event-card')) clearCardSelection();
+});
+// 列表重新渲染后清空选中态记录，避免指向已不存在的卡片
+window.addEventListener('DOMContentLoaded', () => { _selectedCardId = null; });
+
+// 滚动时淡化 FAB，避免遮挡经过的卡片内容
+(function initFabScrollFade() {
+  let timer = null;
+  let lastY = window.scrollY;
+  window.addEventListener('scroll', () => {
+    const fab = document.getElementById('fabBtn');
+    if (!fab) return;
+    // 只在向下滚动时淡化（向上滚动通常是回看内容，FAB 淡化无意义）
+    const y = window.scrollY;
+    if (y > lastY + 4) fab.classList.add('scrolling');
+    else fab.classList.remove('scrolling');
+    lastY = y;
+    clearTimeout(timer);
+    timer = setTimeout(() => fab.classList.remove('scrolling'), 500);
+  }, { passive: true });
+})();
 
 function toggleLunar() {
   const checked = document.getElementById('evIsLunar').checked;
