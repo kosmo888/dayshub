@@ -1,4 +1,18 @@
-/* DaysHub 时光看板 — 前端逻辑 v2.3.3 */
+/* 密码显隐切换通用辅助函数 */
+function togglePasswordVisibility(inputId, btnEl) {
+  const input = document.getElementById(inputId);
+  if (!input) return;
+  const isPass = input.type === 'password';
+  input.type = isPass ? 'text' : 'password';
+  if (btnEl) {
+    btnEl.setAttribute('aria-label', isPass ? '隐藏密码' : '显示密码');
+    btnEl.innerHTML = isPass
+      ? `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>`
+      : `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>`;
+  }
+}
+
+/* DaysHub 时光看板 — 前端逻辑 v2.4.0 */
 let dashboardData = null;
 let currentTab = 'all';
 let searchResults = null;
@@ -390,7 +404,8 @@ function renderHeroFocus() {
   const subText = heroEv.lunar_str || (heroEv.next_date ? `公历 ${heroEv.next_date}` : heroEv.date);
   const noteStr = heroEv.note ? ` · 📝 ${heroEv.note}` : '';
 
-  card.style.borderColor = heroEv.color || 'var(--accent)';
+  card.style.borderColor = 'var(--border)';
+  card.style.borderLeftColor = heroEv.color || 'var(--primary)';
   card.onclick = () => editEvent(heroEv.id);
 
   card.innerHTML = `
@@ -416,7 +431,7 @@ function renderToday() {
   if (events.length === 0) { section.style.display = 'none'; return; }
   section.style.display = 'block';
   document.getElementById('todayEvents').innerHTML = events.map(ev => `
-    <div class="today-card" style="border-color:${ev.color}" onclick="editEvent(${ev.id})">
+    <div class="today-card" style="border-left-color:${ev.color || 'var(--primary)'}" onclick="editEvent(${ev.id})">
       <span class="icon">${ev.icon}</span>
       <div class="info">
         <div class="title">${ev.title}</div>
@@ -511,7 +526,22 @@ function renderTabs() {
 function renderCountdown() {
   const list = getSortedList(dashboardData.countdown || [], 'countdown');
   const container = document.getElementById('tab-countdown');
-  if (!list.length) { container.innerHTML = '<div class="sort-bar" id="sortBar-countdown"></div><div class="empty">暂无倒数事件</div>'; renderSortBar('countdown'); return; }
+  if (!list.length) {
+    const emptyHtml = `<div class="empty">
+      <svg class="empty-icon" viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="4" width="18" height="18" rx="3" ry="3"></rect>
+        <line x1="16" y1="2" x2="16" y2="6"></line>
+        <line x1="8" y1="2" x2="8" y2="6"></line>
+        <line x1="3" y1="10" x2="21" y2="10"></line>
+      </svg>
+      <div class="empty-title">暂无倒数事件</div>
+      <div class="empty-desc">记录生命中重要的日子，倒数每一个心动时刻</div>
+      <button type="button" class="btn btn-primary btn-sm empty-btn" onclick="openAddModal()">+ 新建倒数事件</button>
+    </div>`;
+    container.innerHTML = '<div class="sort-bar" id="sortBar-countdown"></div>' + emptyHtml;
+    renderSortBar('countdown');
+    return;
+  }
   container.innerHTML = '<div class="sort-bar" id="sortBar-countdown"></div>' + list.map(ev => renderEventCard(ev)).join('');
   renderSortBar('countdown');
 }
@@ -519,7 +549,19 @@ function renderCountdown() {
 function renderRecurring() {
   const list = getSortedList(dashboardData.recurring || [], 'recurring');
   const container = document.getElementById('tab-recurring');
-  if (!list.length) { container.innerHTML = '<div class="sort-bar" id="sortBar-recurring"></div><div class="empty">暂无循环事件</div>'; renderSortBar('recurring'); return; }
+  if (!list.length) {
+    const emptyHtml = `<div class="empty">
+      <svg class="empty-icon" viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"></path>
+      </svg>
+      <div class="empty-title">暂无循环事件</div>
+      <div class="empty-desc">生日、纪念日、发薪日，每个周期都不遗忘</div>
+      <button type="button" class="btn btn-primary btn-sm empty-btn" onclick="openAddModal()">+ 新建循环事件</button>
+    </div>`;
+    container.innerHTML = '<div class="sort-bar" id="sortBar-recurring"></div>' + emptyHtml;
+    renderSortBar('recurring');
+    return;
+  }
   container.innerHTML = '<div class="sort-bar" id="sortBar-recurring"></div>' + list.map(ev => renderEventCard(ev)).join('');
   renderSortBar('recurring');
 }
@@ -527,7 +569,20 @@ function renderRecurring() {
 function renderAccumulate() {
   const list = getSortedList(dashboardData.accumulate || [], 'accumulate');
   const container = document.getElementById('tab-accumulate');
-  if (!list.length) { container.innerHTML = '<div class="sort-bar" id="sortBar-accumulate"></div><div class="empty">暂无累计事件</div>'; renderSortBar('accumulate'); return; }
+  if (!list.length) {
+    const emptyHtml = `<div class="empty">
+      <svg class="empty-icon" viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="10"></circle>
+        <polyline points="12 6 12 12 16 14"></polyline>
+      </svg>
+      <div class="empty-title">暂无累计事件</div>
+      <div class="empty-desc">恋爱第几天、戒烟坚持多久，数一数走过的路</div>
+      <button type="button" class="btn btn-primary btn-sm empty-btn" onclick="openAddModal()">+ 新建累计事件</button>
+    </div>`;
+    container.innerHTML = '<div class="sort-bar" id="sortBar-accumulate"></div>' + emptyHtml;
+    renderSortBar('accumulate');
+    return;
+  }
   container.innerHTML = '<div class="sort-bar" id="sortBar-accumulate"></div>' + list.map(ev => renderAccumCard(ev)).join('');
   renderSortBar('accumulate');
 }
@@ -537,7 +592,22 @@ function renderAll() {
   if (searchResults) { list = searchResults; } else { list = dashboardData.all_events || []; }
   list = getSortedList(list, 'all');
   const container = document.getElementById('tab-all');
-  if (!list.length) { container.innerHTML = '<div class="sort-bar" id="sortBar-all"></div><div class="empty">暂无事件</div>'; renderSortBar('all'); return; }
+  if (!list.length) {
+    const emptyHtml = `<div class="empty">
+      <svg class="empty-icon" viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+        <polyline points="14 2 14 8 20 8"></polyline>
+        <line x1="12" y1="18" x2="12" y2="12"></line>
+        <line x1="9" y1="15" x2="15" y2="15"></line>
+      </svg>
+      <div class="empty-title">暂无任何事件</div>
+      <div class="empty-desc">点击下方按钮添加属于你的第一个时光纪念日</div>
+      <button type="button" class="btn btn-primary btn-sm empty-btn" onclick="openAddModal()">+ 立即创建新事件</button>
+    </div>`;
+    container.innerHTML = '<div class="sort-bar" id="sortBar-all"></div>' + emptyHtml;
+    renderSortBar('all');
+    return;
+  }
   container.innerHTML = '<div class="sort-bar" id="sortBar-all"></div>' + list.map(ev => {
     if (ev.event_type === 'accumulate') return renderAccumCard(ev);
     return renderEventCard(ev);
@@ -566,18 +636,23 @@ function renderEventCard(ev) {
   let daysHtml;
   if (isToday) { daysHtml = '<span class="ev-badge-today">🎉 今天</span>'; }
   else if (days !== null && days !== undefined) {
-    daysHtml = `<div class="ev-days"><div class="ev-days-num" style="color:${ev.color}">${days}</div><div class="ev-days-unit">天后</div></div>`;
+    daysHtml = `<div class="ev-days"><div class="ev-days-num">${days}</div><div class="ev-days-unit">天后</div></div>`;
   } else { daysHtml = ''; }
 
-  return `<div class="event-card ${ev.is_pinned ? 'pinned' : ''} ${urgencyCls}" style="border-color:${ev.color}" onclick="editEvent(${ev.id})">
+  const evAccentColor = ev.color || 'var(--primary)';
+  return `<div class="event-card ${ev.is_pinned ? 'pinned' : ''} ${urgencyCls}" style="--ev-custom-color:${evAccentColor}; border-left-color:${evAccentColor};" onclick="editEvent(${ev.id})">
     <div class="card-quick-actions" onclick="event.stopPropagation()">
       <button class="card-action-btn" title="${ev.is_pinned ? '取消置顶' : '置顶'}" onclick="quickTogglePin(${ev.id}, ${ev.is_pinned ? 0 : 1})">
-        ${ev.is_pinned ? '📍' : '📌'}
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 17v5M9 2h6l-1 7h3l-5 8-5-8h3z"/></svg>
       </button>
-      <button class="card-action-btn" title="编辑" onclick="editEvent(${ev.id})">✏️</button>
-      <button class="card-action-btn danger" title="删除" onclick="quickDeleteEvent(${ev.id}, '${escapeHtml(ev.title)}')">🗑️</button>
+      <button class="card-action-btn" title="编辑" onclick="editEvent(${ev.id})">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
+      </button>
+      <button class="card-action-btn danger" title="删除" onclick="quickDeleteEvent(${ev.id}, '${escapeHtml(ev.title)}')">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+      </button>
     </div>
-    <span class="ev-icon">${ev.icon}</span>
+    <span class="ev-icon" style="background:${evAccentColor}18; color:${evAccentColor}; border:1px solid ${evAccentColor}30;">${ev.icon}</span>
     <div class="ev-info">
       <div class="ev-title">${pinIcon}${escapeHtml(ev.title)}${ageStr}${urgencyBadge}</div>
       <div class="ev-sub">${escapeHtml(sub)}${ev.note ? ' · 📝 ' + escapeHtml(ev.note) : ''}</div>
@@ -598,21 +673,26 @@ function renderAccumCard(ev) {
       return `<span class="milestone-dot ${cls}" title="${m.milestone}天"></span>`;
     }).join('')}</div>`;
   }
-  return `<div class="event-card ${ev.is_pinned ? 'pinned' : ''}" style="border-color:${ev.color}" onclick="editEvent(${ev.id})">
+  const evAccentColor = ev.color || 'var(--primary)';
+  return `<div class="event-card ${ev.is_pinned ? 'pinned' : ''}" style="--ev-custom-color:${evAccentColor}; border-left-color:${evAccentColor};" onclick="editEvent(${ev.id})">
     <div class="card-quick-actions" onclick="event.stopPropagation()">
       <button class="card-action-btn" title="${ev.is_pinned ? '取消置顶' : '置顶'}" onclick="quickTogglePin(${ev.id}, ${ev.is_pinned ? 0 : 1})">
-        ${ev.is_pinned ? '📍' : '📌'}
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 17v5M9 2h6l-1 7h3l-5 8-5-8h3z"/></svg>
       </button>
-      <button class="card-action-btn" title="编辑" onclick="editEvent(${ev.id})">✏️</button>
-      <button class="card-action-btn danger" title="删除" onclick="quickDeleteEvent(${ev.id}, '${escapeHtml(ev.title)}')">🗑️</button>
+      <button class="card-action-btn" title="编辑" onclick="editEvent(${ev.id})">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
+      </button>
+      <button class="card-action-btn danger" title="删除" onclick="quickDeleteEvent(${ev.id}, '${escapeHtml(ev.title)}')">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+      </button>
     </div>
-    <span class="ev-icon">${ev.icon}</span>
+    <span class="ev-icon" style="background:${evAccentColor}18; color:${evAccentColor}; border:1px solid ${evAccentColor}30;">${ev.icon}</span>
     <div class="ev-info">
       <div class="ev-title">${pinIcon}${escapeHtml(ev.title)}</div>
       <div class="ev-sub">从 ${ev.date} 起${msStr}</div>
       ${msDots}
     </div>
-    <div class="ev-days"><div class="ev-days-num" style="color:${ev.color}">${days}</div><div class="ev-days-unit">天已过</div></div>
+    <div class="ev-days"><div class="ev-days-num">${days}</div><div class="ev-days-unit">天已过</div></div>
   </div>`;
 }
 

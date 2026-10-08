@@ -1,5 +1,5 @@
 /* ==============================================================================
-   DaysHub · 现代极客工程设计系统 (Inspired by Popular Web Designs: Linear & Vercel) v2.3.2
+   DaysHub · 现代极客工程设计系统 (Inspired by Popular Web Designs: Linear & Vercel) v2.4.0
    核心设计原则：
    1. 深色原生质感 (Dark-First)：纯黑基底、多阶半透明白色描边、极低饱和度但高辨识度色彩
    2. 极简字体排版 (Precision Typography)：Inter 字体栈、紧凑字距 (tight letter-spacing)
@@ -685,7 +685,7 @@ body {
   margin-bottom: 12px;
   box-shadow: var(--shadow-sm);
   border: 1px solid var(--border);
-  border-left: 4px solid;
+  border-left: 4px solid var(--primary);
   display: flex;
   align-items: center;
   gap: 14px;
@@ -710,7 +710,13 @@ body {
   background: linear-gradient(90deg, rgba(245, 158, 11, 0.05) 0%, var(--card-bg) 60%);
 }
 .event-card .ev-icon {
-  font-size: 26px;
+  font-size: 20px;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   flex-shrink: 0;
   line-height: 1;
 }
@@ -792,18 +798,21 @@ body {
   pointer-events: auto;
 }
 .card-action-btn {
-  width: 26px;
-  height: 26px;
-  border-radius: 5px;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
   border: 1px solid var(--border);
   background: var(--bg);
-  color: var(--text);
+  color: var(--text-secondary);
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   font-size: 12px;
   transition: all .15s ease;
+}
+.card-action-btn svg {
+  stroke: currentColor;
 }
 .card-action-btn:hover {
   background: var(--card-bg);
@@ -895,8 +904,10 @@ body {
 @media (max-width: 600px) {
   .footer {
     bottom: calc(12px + env(safe-area-inset-bottom, 0px));
-    width: calc(100% - 24px);
-    border-radius: 22px;
+    width: calc(100% - 32px);
+    max-width: 360px;
+    border-radius: 24px;
+    padding: 6px 8px;
   }
 }
 .tool-btn {
@@ -960,6 +971,10 @@ body {
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(4px); }
   to { opacity: 1; transform: translateY(0); }
+}
+
+.drawer-handle {
+  display: none;
 }
 
 .modal {
@@ -1437,66 +1452,182 @@ body {
   border: 1px solid var(--border);
 }
 
-/* 登录/注册卡片 */
+/* 登录/注册卡片 - P0 重构 */
 #loginPage {
   min-height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 20px;
-  background: radial-gradient(circle at 50% 30%, rgba(var(--primary-rgb), 0.12) 0%, var(--bg) 70%);
+  padding: 24px 16px;
+  background-color: var(--bg);
+  background-image: radial-gradient(rgba(var(--primary-rgb), 0.07) 1px, transparent 1px);
+  background-size: 20px 20px;
 }
-.login-card {
-  background: var(--card-bg);
-  border-radius: var(--radius-lg);
-  padding: 38px 34px;
+.login-container {
   width: 100%;
   max-width: 400px;
-  box-shadow: var(--shadow-xl);
-  border: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.login-brand {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   text-align: center;
-  animation: fadeIn .3s cubic-bezier(0.16, 1, 0.3, 1);
+  margin-bottom: 24px;
 }
-.login-icon {
-  margin-bottom: 16px;
-  display: inline-block;
+.login-logo-mark {
+  width: 56px;
+  height: 56px;
+  border-radius: 16px;
+  background: var(--primary-gradient);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 12px;
+  box-shadow: 0 4px 14px rgba(var(--primary-rgb), 0.3);
 }
-.login-card h1 {
+.login-title {
   font-size: 24px;
   font-weight: 800;
   color: var(--text);
   letter-spacing: -0.03em;
+  margin: 0;
 }
-.login-desc {
-  font-size: 13px;
+.login-sub {
+  font-size: 13.5px;
   color: var(--text-secondary);
   margin-top: 4px;
-  margin-bottom: 24px;
+  margin-bottom: 0;
+}
+.login-card {
+  background: var(--card-bg);
+  border-radius: var(--radius-lg);
+  padding: 28px 24px;
+  width: 100%;
+  box-shadow: var(--shadow-xl);
+  border: 1px solid var(--border);
+  animation: fadeIn .3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.login-field {
+  margin-bottom: 16px;
+  text-align: left;
+}
+.login-label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 6px;
+}
+.login-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.login-input-icon {
+  position: absolute;
+  left: 12px;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+.login-input {
+  width: 100%;
+  height: 46px;
+  min-height: 46px;
+  padding: 10px 40px 10px 38px;
+  font-size: 16px !important; /* iOS 防缩放基准 */
+  background: var(--bg);
+  color: var(--text);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  outline: none;
+  transition: all .2s ease;
+  font-family: inherit;
+  box-sizing: border-box;
+}
+.login-input:focus {
+  border-color: var(--border-focus);
+  background: var(--card-bg);
+  box-shadow: 0 0 0 3px rgba(var(--primary-rgb), 0.15);
+}
+.login-pwd-toggle {
+  position: absolute;
+  right: 10px;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  padding: 6px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  transition: color .15s ease;
+}
+.login-pwd-toggle:hover {
+  color: var(--text);
+}
+.login-pwd-toggle:focus-visible {
+  outline: 2px solid var(--primary);
 }
 .login-btn {
   width: 100%;
-  padding: 11px;
-  font-size: 15px;
+  height: 48px;
+  min-height: 48px;
+  font-size: 15.5px;
+  font-weight: 600;
   border-radius: var(--radius-sm);
+  margin-top: 4px;
 }
 .login-error {
-  color: var(--danger);
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  border-radius: var(--radius-xs);
+  padding: 8px 12px;
   font-size: 13px;
-  margin-top: 10px;
+  margin-bottom: 12px;
   font-weight: 600;
+  text-align: left;
+}
+[data-theme="dark"] .login-error {
+  color: #fca5a5;
+  background: rgba(239, 68, 68, 0.16);
+  border-color: rgba(248, 113, 113, 0.35);
 }
 .auth-switch {
   margin-top: 16px;
   text-align: center;
 }
 .auth-switch a {
-  font-size: 13px;
-  color: var(--accent);
+  font-size: 13.5px;
+  color: var(--primary);
   text-decoration: none;
   font-weight: 600;
 }
+[data-theme="dark"] .auth-switch a {
+  color: #a5b4fc;
+}
 .auth-switch a:hover {
   text-decoration: underline;
+}
+
+@media (max-width: 480px) {
+  #loginPage {
+    padding: 16px 12px;
+    align-items: flex-start;
+    padding-top: calc(24px + env(safe-area-inset-top, 0px));
+  }
+  .login-card {
+    padding: 22px 18px;
+    border-radius: var(--radius);
+  }
 }
 
 /* ==============================================================================
@@ -1586,6 +1717,29 @@ body.board-mode .event-card .ev-days-num {
     padding: 0 !important;
   }
 
+  .drawer-handle {
+    display: block !important;
+    width: 36px;
+    height: 4px;
+    background: rgba(148, 163, 184, 0.4);
+    border-radius: 2px;
+    margin: 10px auto 4px;
+    flex-shrink: 0;
+  }
+  [data-theme="dark"] .drawer-handle {
+    background: rgba(255, 255, 255, 0.35) !important;
+  }
+
+  .modal {
+    border-radius: 20px 20px 0 0 !important;
+    max-height: 88vh !important;
+    border-bottom: none !important;
+    border-left: none !important;
+    border-right: none !important;
+    width: 100vw !important;
+    max-width: 100vw !important;
+  }
+
   .modal-settings {
     width: 100vw !important;
     max-width: 100vw !important;
@@ -1600,6 +1754,8 @@ body.board-mode .event-card .ev-days-num {
 
   .settings-layout {
     flex-direction: column !important;
+    flex: 1;
+    overflow: hidden;
   }
 
   /* 侧边栏转为丝滑横向滑轨 */
@@ -1636,7 +1792,9 @@ body.board-mode .event-card .ev-days-num {
   }
 
   .settings-main {
-    padding: 16px 14px calc(24px + env(safe-area-inset-bottom, 0px)) !important;
+    padding: 16px 16px calc(24px + env(safe-area-inset-bottom, 0px)) !important;
+    overflow-y: auto !important;
+    flex: 1;
   }
 
   /* 通用表单与按钮通栏流式堆叠 */
@@ -1655,6 +1813,13 @@ body.board-mode .event-card .ev-days-num {
     flex-direction: column;
     gap: 10px;
     width: 100%;
+    position: sticky;
+    bottom: -16px;
+    background: var(--card-bg);
+    padding: 12px 0 4px;
+    margin-top: 16px;
+    border-top: 1px solid var(--border);
+    z-index: 5;
   }
 
   .btn-full {
@@ -1682,9 +1847,37 @@ body.board-mode .event-card .ev-days-num {
 
 /* 空状态 (提升对比度符合 WCAG AA 规范) */
 .empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
   text-align: center;
+  padding: 48px 20px;
+  background: var(--card-bg);
+  border: 1px dashed var(--border);
+  border-radius: var(--radius);
+  margin: 16px 0;
+}
+.empty-icon {
+  color: var(--text-muted);
+  margin-bottom: 14px;
+  opacity: 0.85;
+}
+.empty-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 6px;
+}
+.empty-desc {
+  font-size: 13px;
   color: var(--text-secondary);
-  padding: 60px 20px;
-  font-size: 14.5px;
-  font-weight: 500;
+  max-width: 260px;
+  line-height: 1.5;
+  margin-bottom: 18px;
+}
+.empty-btn {
+  padding: 8px 18px !important;
+  font-size: 13.5px !important;
+  border-radius: 20px !important;
 }

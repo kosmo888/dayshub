@@ -6,7 +6,7 @@ import secrets
 import hmac
 import time
 
-VERSION = "2.3.3"
+VERSION = "2.4.0"
 
 class Config:
     # ========== 基础 ==========
