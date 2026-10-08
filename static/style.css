@@ -1257,6 +1257,44 @@ body {
     gap: 0;
   }
 }
+
+/* 农历月/闰月/农历日 三栏控件（替换原先会塌陷的 .form-row + 内联 align-items） */
+.lunar-row {
+  display: flex;
+  gap: 12px;
+  align-items: flex-end;
+}
+.lunar-row .lunar-month { flex: 2; margin-bottom: 0; }
+.lunar-row .lunar-leap {
+  flex: 0 0 auto;
+  margin-bottom: 0;
+  /* 与下拉框垂直基线对齐：label 占位高度 + select 高度 */
+  padding-bottom: 12px;
+}
+.lunar-row .lunar-day { flex: 2; margin-bottom: 0; }
+.lunar-row .form-select { width: 100%; }
+.lunar-row .checkbox-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 44px;
+  font-size: 14px;
+  white-space: nowrap;
+}
+@media (max-width: 640px) {
+  .lunar-row {
+    flex-wrap: wrap;
+    gap: 0 12px;
+  }
+  .lunar-row .lunar-month { flex: 1 1 100%; }
+  .lunar-row .lunar-day { flex: 1 1 100%; }
+  .lunar-row .lunar-leap {
+    flex: 1 1 100%;
+    padding-bottom: 0;
+    order: 3;
+  }
+  .lunar-row .lunar-leap .checkbox-label { height: 40px; }
+}
 .form-input, .form-select, .form-textarea {
   width: 100%;
   padding: 9.5px 13px;

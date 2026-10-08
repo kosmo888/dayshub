@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/static/style.css?v=2.4.2">
+<link rel="stylesheet" href="/static/style.css?v=2.4.3">
 </head>
 <body>
 
@@ -147,7 +147,7 @@
           </div>
           <span class="brand-name">DaysHub</span>
           <span class="brand-sub">时光看板</span>
-          <span class="user-badge brand-ver">v2.4.2</span>
+          <span class="user-badge brand-ver">v2.4.3</span>
         </div>
       </div>
       <div class="date-info" id="dateInfo">加载中...</div>
@@ -282,8 +282,8 @@
             <input type="checkbox" id="evIsLunar" onchange="toggleLunar()"> 使用农历（每年按农历循环）
           </label>
           <div id="lunarInputs" style="display:none; margin-top:8px;">
-            <div class="form-row" style="align-items: flex-end;">
-              <div class="form-group" style="flex:2">
+            <div class="lunar-row">
+              <div class="form-group lunar-month">
                 <label>农历月</label>
                 <select id="evLunarMonth" class="form-select" onchange="onLunarChange()">
                   <option value="1">正月</option><option value="2">二月</option>
@@ -294,12 +294,10 @@
                   <option value="11">冬月</option><option value="12">腊月</option>
                 </select>
               </div>
-              <div class="form-group" style="flex:1; margin-bottom: 14px;">
-                <label class="checkbox-label" style="height:38px; display:flex; align-items:center;">
-                  <input type="checkbox" id="evIsLeap" onchange="onLunarChange()"> 闰月
-                </label>
+              <div class="form-group lunar-leap">
+                <label class="checkbox-label"><input type="checkbox" id="evIsLeap" onchange="onLunarChange()"> 闰月</label>
               </div>
-              <div class="form-group" style="flex:2">
+              <div class="form-group lunar-day">
                 <label>农历日</label>
                 <select id="evLunarDay" class="form-select" onchange="onLunarChange()">
                   <option value="1">初一</option><option value="2">初二</option>
@@ -379,7 +377,7 @@
         <div style="display:flex; align-items:center; gap:8px;">
           <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
           <h3 style="margin:0;">系统设置中心</h3>
-          <span style="font-size:11px; font-weight:600; padding:2px 7px; border-radius:10px; background:rgba(79,70,229,0.12); color:var(--primary); letter-spacing:0.5px;">v2.4.2</span>
+          <span style="font-size:11px; font-weight:600; padding:2px 7px; border-radius:10px; background:rgba(79,70,229,0.12); color:var(--primary); letter-spacing:0.5px;">v2.4.3</span>
         </div>
         <button class="modal-close" onclick="document.getElementById('settingsModal').style.display='none'">✕</button>
       </div>
@@ -542,7 +540,7 @@
 
           <div class="channel-group admin-only" id="backupStrategySection" style="display:none;">
             <h5 class="channel-title">自定义备份策略 (管理员)</h5>
-            <div class="form-row" style="align-items:center; margin-bottom:12px;">
+            <div class="form-row" style="margin-bottom:12px;">
               <div class="form-group" style="flex:1;">
                 <label class="checkbox-label" style="font-weight:600;"><input type="checkbox" id="backupEnabled" checked> 启用定时自动备份</label>
               </div>
@@ -821,6 +819,6 @@
   </footer>
 </div>
 
-<script src="/static/app.js?v=2.4.2"></script>
+<script src="/static/app.js?v=2.4.3"></script>
 </body>
 </html>
