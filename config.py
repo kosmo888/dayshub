@@ -6,7 +6,7 @@ import secrets
 import hmac
 import time
 
-VERSION = "2.4.0"
+VERSION = "2.4.1"
 
 class Config:
     # ========== 基础 ==========
@@ -125,11 +125,15 @@ def load_backup_config() -> dict:
         bt = str(get_setting("backup_time", "03:00") or "03:00")
         bc = int(get_setting("backup_count", "30") or 30)
         btype = str(get_setting("backup_type", "both") or "both")
+        bi = int(get_setting("backup_interval_days", "1") or 1)
+        if bi < 1:
+            bi = 1
         return {
             "backup_enabled": en.lower() == "true",
             "backup_time": bt,
             "backup_count": bc,
             "backup_type": btype,
+            "backup_interval_days": bi,
         }
     except Exception:
         return {
@@ -137,6 +141,7 @@ def load_backup_config() -> dict:
             "backup_time": "03:00",
             "backup_count": 30,
             "backup_type": "both",
+            "backup_interval_days": 1,
         }
 
 def save_backup_config(data: dict):
@@ -154,6 +159,12 @@ def save_backup_config(data: dict):
             pass
     if "backup_type" in data and data["backup_type"]:
         set_setting("backup_type", str(data["backup_type"]).strip())
+    if "backup_interval_days" in data:
+        try:
+            bi = max(1, min(365, int(data["backup_interval_days"])))
+            set_setting("backup_interval_days", str(bi))
+        except (ValueError, TypeError):
+            pass
 
 
 # ========== 推送配置（从DB动态读取，覆盖环境变量） ==========

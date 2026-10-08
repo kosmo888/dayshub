@@ -167,7 +167,8 @@ def api_save_backup_settings():
     from config import save_backup_config, load_backup_config
     data = request.get_json() or {}
     save_backup_config(data)
-    log_action("backup_config", "system", f"修改定时备份策略配置 (保留份数: {data.get('backup_count', 30)}, 时间: {data.get('backup_time', '03:00')})")
+    interval = data.get("backup_interval_days", 1)
+    log_action("backup_config", "system", f"修改定时备份策略配置 (保留份数: {data.get('backup_count', 30)}, 时间: {data.get('backup_time', '03:00')}, 间隔: 每{interval}天一次)")
     try:
         from scheduler import reschedule_backup
         reschedule_backup(current_app)

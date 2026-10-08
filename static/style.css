@@ -947,9 +947,46 @@ body {
   background: var(--danger-bg) !important;
 }
 
-/* 浮动添加按钮 (底部 Dock 已内建高频新增入口，隐藏 FAB 消除重叠与视口遮挡) */
+/* 浮动添加按钮 (右下角大圆圈，位于 Dock 右上方避免重叠) */
 .fab {
-  display: none !important;
+  position: fixed;
+  bottom: 92px;
+  right: 18px;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--primary);
+  color: #ffffff;
+  border: none;
+  box-shadow: 0 6px 20px rgba(var(--primary-rgb), 0.45);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 101;
+  transition: transform .2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow .2s;
+}
+.fab:hover {
+  transform: scale(1.08);
+  background: var(--primary-hover);
+  box-shadow: 0 10px 26px rgba(var(--primary-rgb), 0.55);
+}
+.fab:active {
+  transform: scale(0.94);
+}
+@media (max-width: 680px) {
+  .fab {
+    bottom: calc(88px + env(safe-area-inset-bottom, 0px));
+    right: 14px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .fab,
+  .fab:hover,
+  .fab:active {
+    transition: none;
+    transform: none;
+  }
 }
 
 /* ==============================================================================

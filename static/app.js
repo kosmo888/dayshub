@@ -12,7 +12,7 @@ function togglePasswordVisibility(inputId, btnEl) {
   }
 }
 
-/* DaysHub 时光看板 — 前端逻辑 v2.4.0 */
+/* DaysHub 时光看板 — 前端逻辑 v2.4.1 */
 let dashboardData = null;
 let currentTab = 'all';
 let searchResults = null;
@@ -1381,6 +1381,9 @@ function showSettings() {
       if (document.getElementById('backupType')) {
         document.getElementById('backupType').value = res.config.backup_type || 'both';
       }
+      if (document.getElementById('backupIntervalDays')) {
+        document.getElementById('backupIntervalDays').value = String(res.config.backup_interval_days || 1);
+      }
     }
   }).catch(() => {});
 
@@ -1398,6 +1401,7 @@ async function saveBackupSettings() {
     backup_time: document.getElementById('backupTime').value.trim() || '03:00',
     backup_count: parseInt(document.getElementById('backupCount').value) || 30,
     backup_type: document.getElementById('backupType')?.value || 'both',
+    backup_interval_days: parseInt(document.getElementById('backupIntervalDays')?.value) || 1,
   };
   try {
     const resp = await apiFetch('/api/settings/backup', {
